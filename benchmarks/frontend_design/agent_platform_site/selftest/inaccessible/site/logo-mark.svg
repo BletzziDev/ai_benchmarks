@@ -1,0 +1,5 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 32 32" role="img" aria-label="Orbital Agents">
+  <circle cx="16" cy="16" r="11" fill="none" stroke="#3346E8" stroke-width="3"/>
+  <circle cx="16" cy="16" r="4" fill="#0B1020"/>
+  <circle cx="25" cy="8" r="3.5" fill="#19C3A0"/>
+</svg>

@@ -1,0 +1,139 @@
+schema_version: 1
+id: frontend_design/agent_platform_site
+name: "Orbital Agents: enterprise marketing site from a fixed brand brief"
+version: 1.0.0
+category: frontend_design
+difficulty: hard
+description: >
+  Build a professional, responsive, accessible static marketing site (HTML/CSS/vanilla JS) from a fixed
+  brief: mandatory palette and type, exact copy, required components (mobile nav, billing switch, FAQ
+  accordion, validated demo form). Graded in a headless browser at 4 widths plus a visual rubric on screenshots.
+languages: [html, css, javascript]
+tags: [frontend, design, accessibility, responsive, playwright, rubric]
+mode: agent
+requires: [tools]
+
+environment:
+  workspace: fixtures/workspace
+  tools: [list_files, read_file, write_file, edit_file, search, run_command]
+  protected_paths: ["CONTENT.md", "assets/**"]
+  sandbox: {memory_mb: 2048, cpu_seconds: 600, network: false}
+
+limits:
+  wall_clock_s: 3600
+  max_turns: 100
+  max_tool_calls: 250
+  max_output_tokens_per_turn: 32000
+  command_timeout_s: 120
+
+evaluation:
+  checks:
+    - id: site
+      type: python
+      description: Static analysis + headless-Chromium probe (structure, components, layout, palette, typography, a11y, budgets).
+      entrypoint: tests/grader.py:grade
+      timeout_s: 420
+    - id: visual
+      type: rubric
+      description: Screenshot rubric graded by an LLM judge panel or a human (pending otherwise).
+      rubric: RUBRIC.md
+      criteria:
+        - {id: visual_quality, description: "overall aesthetic quality and coherence"}
+        - {id: hierarchy_composition, description: "layout, hierarchy, rhythm and spacing across widths"}
+        - {id: brand_fit, description: "calm, precise, trustworthy enterprise brand"}
+        - {id: polish, description: "details, states and defects"}
+      inputs: {artifacts_images: ["judge-*.png"], files: ["site/**"], max_images: 4}
+    - id: scope
+      type: diff_scope
+      allowed: ["site/**"]
+    - id: report
+      type: final_report
+      required_keys: [entry_point, files]
+
+scoring:
+  pass_threshold: 75
+  pass_requires:
+    - "site.site_found == 1"
+    - "site.overflow_free_rate == 1"
+    - "site.components_mean >= 0.8"
+    - "site.contrast_pass_rate >= 0.9"
+    - "site.palette_compliance >= 0.9"
+  criteria:
+    # Functionality (25)
+    - {id: mobile_nav, weight: 5, metric: site.mobile_nav_score}
+    - {id: pricing_switch, weight: 5, metric: site.pricing_score}
+    - {id: faq_accordion, weight: 5, metric: site.faq_score}
+    - {id: demo_form, weight: 7, metric: site.form_score}
+    - {id: skip_link, weight: 3, metric: site.skip_link_ok}
+    # Brief fidelity (20)
+    - {id: required_structure, weight: 5, metric: site.structure_rate}
+    - {id: content_fidelity, weight: 4, metric: site.content_fidelity}
+    - {id: palette, weight: 6, metric: site.palette_compliance, transform: {type: linear, zero_at: 0.7, full_at: 1.0}}
+    - {id: typography, weight: 3, metric: site.typography_score}
+    - {id: spacing_scale, weight: 2, metric: site.spacing_grid_rate, transform: {type: linear, zero_at: 0.6, full_at: 0.95}}
+    # Responsiveness (12)
+    - {id: no_horizontal_overflow, weight: 8, metric: site.overflow_free_rate}
+    - {id: nav_layout_by_width, weight: 2, metric: site.desktop_nav_ok}
+    - {id: touch_targets, weight: 2, metric: site.tap_target_rate}
+    # Accessibility (18)
+    - {id: text_contrast, weight: 7, metric: site.contrast_pass_rate, transform: {type: linear, zero_at: 0.8, full_at: 1.0}}
+    - {id: labels_and_names, weight: 4, metric: site.a11y_names_mean}
+    - {id: focus_visible, weight: 3, metric: site.focus_visible_rate}
+    - {id: heading_outline, weight: 2, metric: site.heading_ok}
+    - {id: reduced_motion, weight: 2, metric: site.reduced_motion_ok}
+    # Technical quality (10)
+    - {id: no_console_errors, weight: 3, metric: site.console_clean}
+    - {id: self_contained, weight: 3, metric: site.no_external_requests}
+    - {id: size_budget, weight: 2, metric: site.within_budget}
+    - {id: code_hygiene, weight: 2, metric: site.hygiene_score}
+    # Visual rubric (15) — optional: pending without a judge (score is then provisional)
+    - {id: visual_quality, weight: 4, metric: visual.visual_quality, required: false}
+    - {id: hierarchy_composition, weight: 4, metric: visual.hierarchy_composition, required: false}
+    - {id: brand_fit, weight: 3, metric: visual.brand_fit, required: false}
+    - {id: polish, weight: 4, metric: visual.polish, required: false}
+  critical_failures:
+    - id: no_site
+      description: site/index.html does not exist.
+      when: "site.site_found == 0"
+      effect: zero
+    - id: external_resources
+      description: The page loads or references resources outside site/ (CDNs, web fonts, trackers) — forbidden by the brief.
+      when: "site.external_requests > 0 or site.external_refs_static > 0"
+      effect: cap
+      cap: 50
+    - id: framework_used
+      description: A forbidden framework/library was bundled.
+      when: "site.framework_detected > 0"
+      effect: cap
+      cap: 50
+    - id: protected_files_changed
+      description: CONTENT.md or assets/ were modified or deleted.
+      when: "scope.protected_modified + scope.protected_deleted > 0"
+      effect: cap
+      cap: 60
+
+metrics_collected: [tokens, cost, wall_time, model_time, tool_time, tool_calls, screenshots]
+repetition: {attempts: 3, infra_retries: 1}
+leak_canaries: ["AIBENCH-CANARY: 4c1e9b77"]
+
+selftest:
+  - name: reference
+    description: Hand-built, polished, accessible reference site.
+    solution: {kind: overlay, path: REFERENCE_SOLUTION/files, report: REFERENCE_SOLUTION/REPORT.md}
+    expect: {passed: true, min_score: 95, critical: []}
+  - name: noop
+    description: No site produced.
+    solution: {kind: noop}
+    expect: {passed: false, max_score: 0, critical: [no_site]}
+  - name: naive_single_page
+    description: All copy present but unstyled; no components, default colours/fonts, form posts to a server.
+    solution: {kind: overlay, path: selftest/naive_single_page, report: selftest/naive_single_page/REPORT.md}
+    expect: {passed: false, max_score: 45, critical: []}
+  - name: pretty_but_broken
+    description: Attractive variant with a web font from a CDN, off-palette gradient, broken annual prices, overflow.
+    solution: {kind: overlay, path: selftest/pretty_but_broken, report: selftest/pretty_but_broken/REPORT.md}
+    expect: {passed: false, max_score: 50, critical: [external_resources]}
+  - name: inaccessible
+    description: Reference design with low-contrast text, placeholder-only fields, no focus styles, no skip link.
+    solution: {kind: overlay, path: selftest/inaccessible, report: selftest/inaccessible/REPORT.md}
+    expect: {passed: false, max_score: 85, critical: []}

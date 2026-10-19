@@ -42,11 +42,28 @@ def gather_judge_inputs(ctx: Any, spec: dict[str, Any]) -> tuple[str, list[Image
                     continue
                 parts.append(f"<file path=\"{rel}\">\n{body}\n</file>")
     images: list[ImagePart] = []
+    max_side = int(spec.get("max_image_side", 8000))  # providers reject very large images
     for pattern in spec.get("artifacts_images", []):
         for f in sorted(Path(ctx.artifacts_dir).glob(pattern)):
             mt = mimetypes.guess_type(f.name)[0] or "image/png"
+            dims = _png_size(f) if mt == "image/png" else None
+            if dims and max(dims) > max_side:
+                parts.append(f"<note>screenshot {f.name} ({dims[0]}x{dims[1]}) omitted: exceeds {max_side}px</note>")
+                continue
             images.append(ImagePart(str(f), mt))
     return "\n\n".join(parts), images[: spec.get("max_images", 8)]
+
+
+def _png_size(path: Path) -> tuple[int, int] | None:
+    """Width/height from the PNG IHDR chunk (no imaging dependency)."""
+    try:
+        with open(path, "rb") as f:
+            head = f.read(24)
+    except OSError:
+        return None
+    if len(head) < 24 or head[:8] != b"\x89PNG\r\n\x1a\n":
+        return None
+    return int.from_bytes(head[16:20], "big"), int.from_bytes(head[20:24], "big")
 
 
 class JudgePanel:
