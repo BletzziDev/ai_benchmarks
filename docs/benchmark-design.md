@@ -121,7 +121,7 @@ Third-party check types can be referenced as `type: package.module:function` wit
 
 | Kind | Meaning |
 |---|---|
-| `overlay` | Copy a directory over the workspace (`.aibench_delete` lists paths to delete), optionally run commands, then send a report. Executed as real tool calls through the harness. |
+| `overlay` | Copy a directory over the workspace (`.aibench_delete` lists paths to delete), optionally run commands, then send a report. Executed as real tool calls through the harness. Every file in the overlay is written into the workspace, so keep the report **outside** it (e.g. `REFERENCE_SOLUTION/REPORT.md` next to `REFERENCE_SOLUTION/files/`). |
 | `script` | YAML `steps: [{tool: name, args: {...}}, {final: "..."}]` — for behaviours like `ask_user` flows or reckless commands. |
 | `responses` | Chat mode: `{case_id: [reply_turn1, reply_turn2, ...]}`. |
 | `noop` | Do nothing; empty final message. |

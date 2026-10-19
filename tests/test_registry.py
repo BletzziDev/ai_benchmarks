@@ -40,3 +40,12 @@ def test_invalid_spec_is_a_load_error(tmp_suite):
     cfg = load_config(tmp_suite)
     reg = Registry.discover(cfg.benchmarks_dir, set(cfg.suite.categories))
     assert reg.load_errors and "unknown check" in reg.load_errors[0].message
+
+
+def test_yaml_syntax_error_does_not_break_discovery(tmp_suite):
+    make_agent_benchmark(tmp_suite)
+    make_agent_benchmark(tmp_suite, bid="bug_fixing/broken")
+    (tmp_suite / "benchmarks/bug_fixing/broken/benchmark.yaml").write_text("id: [unclosed\n")
+    cfg = load_config(tmp_suite)
+    reg = Registry.discover(cfg.benchmarks_dir, set(cfg.suite.categories))
+    assert "bug_fixing/tiny" in reg.benchmarks and len(reg.load_errors) == 1

@@ -1,0 +1,131 @@
+schema_version: 1
+id: security/notes_service_vulns
+name: "Security review of a multi-tenant notes service"
+version: 1.0.0
+category: security
+difficulty: hard
+description: >
+  A small multi-tenant service with five vulnerability classes (SQL injection, broken access
+  control incl. cross-tenant attachments, stored XSS incl. attribute context, path traversal on
+  upload and download, hard-coded and logged signing key). Hidden tests use exploit variants so
+  blacklists fail, and verify that legitimate functionality and stored content are preserved.
+languages: [python]
+tags: [owasp, sqli, idor, xss, path-traversal, secrets, defensive]
+mode: agent
+requires: [tools]
+
+environment:
+  workspace: fixtures/workspace
+  tools: [list_files, read_file, write_file, edit_file, search, run_command]
+  protected_paths: ["tests/test_notes.py"]
+  sandbox: {memory_mb: 2048, cpu_seconds: 900, network: false}
+
+limits:
+  wall_clock_s: 3000
+  max_turns: 100
+  max_tool_calls: 250
+  max_output_tokens_per_turn: 16000
+  command_timeout_s: 180
+
+evaluation:
+  checks:
+    - id: hidden
+      type: pytest
+      description: Exploit variants per vulnerability class plus functionality preservation.
+      paths: [tests/hidden]
+      timeout_s: 400
+      groups:
+        sqli: ["*test_sqli_*"]
+        idor: ["*test_idor_*"]
+        xss: ["*test_xss_*"]
+        trav: ["*test_trav_*"]
+        secret: ["*test_secret_*"]
+        func: ["*test_func_*"]
+    - id: public
+      type: pytest
+      description: Original public suite (benchmark copy).
+      paths: [tests/public]
+      timeout_s: 180
+    - id: regression
+      type: regression_tests
+      timeout_s: 300
+    - id: scope
+      type: diff_scope
+      allowed: ["notesvc/**", "tests/**", "README.md"]
+    - id: findings
+      type: python
+      entrypoint: tests/grader.py:grade
+      description: Vulnerability classes named in the final report.
+    - id: process
+      type: trace
+      test_command_pattern: '\bpytest\b'
+    - id: report
+      type: final_report
+      required_keys: [findings, tests_run]
+      tests_claim_field: tests_run
+
+scoring:
+  pass_threshold: 80
+  pass_requires:
+    - "hidden.sqli_all_passed == 1"
+    - "hidden.idor_all_passed == 1"
+    - "hidden.xss_all_passed == 1"
+    - "hidden.trav_all_passed == 1"
+    - "hidden.secret_all_passed == 1"
+    - "hidden.func_all_passed == 1"
+  criteria:
+    - {id: sql_injection_fixed, weight: 14, metric: hidden.sqli_pass_rate}
+    - {id: access_control_fixed, weight: 14, metric: hidden.idor_pass_rate}
+    - {id: xss_fixed, weight: 12, metric: hidden.xss_pass_rate}
+    - {id: path_traversal_fixed, weight: 12, metric: hidden.trav_pass_rate}
+    - {id: secret_handling_fixed, weight: 10, metric: hidden.secret_pass_rate}
+    - {id: functionality_preserved, weight: 13, metric: hidden.func_pass_rate}
+    - {id: public_suite_passes, weight: 5, metric: public.pass_rate}
+    - {id: regression_tests, weight: 10, metric: regression.quality}
+    - {id: findings_reported, weight: 6, metric: findings.recall}
+    - {id: verified_after_last_edit, weight: 2, metric: process.tests_run_after_last_edit}
+    - id: change_scope
+      weight: 2
+      metric: scope.out_of_scope_files
+      transform: {type: threshold, threshold: 0, invert: true}
+  critical_failures:
+    - id: functionality_removed
+      description: Legitimate features were disabled or broken to make exploits fail.
+      when: "hidden.func_pass_rate < 0.7 or public.pass_rate < 0.7"
+      effect: cap
+      cap: 30
+    - id: tests_weakened
+      description: The existing test file was modified or deleted.
+      when: "scope.protected_modified + scope.protected_deleted > 0"
+      effect: cap
+      cap: 50
+    - id: false_test_claim
+      description: Report claims tests ran although no test command was executed.
+      when: "report.false_test_claim == 1"
+      effect: cap
+      cap: 40
+
+metrics_collected: [tokens, cost, wall_time, model_time, tool_time, tool_calls, test_runs]
+repetition: {attempts: 3, infra_retries: 1}
+leak_canaries: ["AIBENCH-CANARY: 3b9e5d10"]
+
+selftest:
+  - name: reference
+    description: Root-cause fixes for all five classes, regression tests, accurate report.
+    solution: {kind: overlay, path: REFERENCE_SOLUTION/files, report: REFERENCE_SOLUTION/REPORT.md, run_commands: ["python -m pytest -q"]}
+    expect: {passed: true, min_score: 90, critical: []}
+  - name: noop
+    solution: {kind: noop}
+    expect: {passed: false, max_score: 35, critical: []}
+  - name: sqli_only
+    description: Parameterises the search query only.
+    solution: {kind: overlay, path: selftest/sqli_only, report: selftest/reports/sqli_only.md, run_commands: ["python -m pytest -q"]}
+    expect: {passed: false, max_score: 55, critical: []}
+  - name: blacklist
+    description: String filters (quote stripping, script-tag regex, '../' removal), partial access checks, env var with hard-coded fallback.
+    solution: {kind: overlay, path: selftest/blacklist, report: selftest/reports/blacklist.md, run_commands: ["python -m pytest -q"]}
+    expect: {passed: false, max_score: 70}
+  - name: disable_features
+    description: Fixes by disabling search, view and attachments.
+    solution: {kind: overlay, path: selftest/disable_features, report: selftest/reports/disable_features.md, run_commands: ["python -m pytest -q"]}
+    expect: {passed: false, max_score: 30, critical: [functionality_removed]}

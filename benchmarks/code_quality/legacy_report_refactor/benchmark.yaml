@@ -1,0 +1,118 @@
+schema_version: 1
+id: code_quality/legacy_report_refactor
+name: "Behaviour-preserving refactor of a legacy reporting module"
+version: 1.0.0
+category: code_quality
+difficulty: medium
+description: >
+  Refactor a ~420-line legacy financial reporting module (long functions, nesting depth 6,
+  duplicated currency/fee/format logic, 67 magic numbers, no type hints) for maintainability
+  while keeping every output byte-identical. Equivalence is checked against a frozen copy of the
+  original with property-based tests; quality is measured statically relative to the original,
+  with an explicit over-engineering penalty.
+languages: [python]
+tags: [refactoring, maintainability, behaviour-preservation, complexity, duplication, over-engineering]
+mode: agent
+requires: [tools]
+
+environment:
+  workspace: fixtures/workspace
+  tools: [list_files, read_file, write_file, edit_file, search, run_command]
+  protected_paths: ["tests/test_reports.py", "data/**"]
+  sandbox: {memory_mb: 2048, cpu_seconds: 900, network: false}
+
+limits:
+  wall_clock_s: 3000
+  max_turns: 100
+  max_tool_calls: 250
+  max_output_tokens_per_turn: 32000
+  command_timeout_s: 240
+
+evaluation:
+  checks:
+    - id: hidden
+      type: pytest
+      description: Equivalence with a frozen copy of the original (property-based + edge cases) and API checks.
+      paths: [tests/hidden]
+      timeout_s: 600
+      groups:
+        equiv: ["*test_equiv_*"]
+        api: ["*test_api_*"]
+    - id: public
+      type: pytest
+      paths: [tests/public]
+      timeout_s: 120
+    - id: quality
+      type: python
+      entrypoint: tests/grader.py:grade
+      description: Static maintainability metrics relative to the original package.
+    - id: scope
+      type: diff_scope
+      allowed: ["ledgerly/**", "tests/**"]
+    - id: process
+      type: trace
+      test_command_pattern: '\bpytest\b'
+    - id: report
+      type: final_report
+      required_keys: [summary, behaviour_changes, tests_run]
+      tests_claim_field: tests_run
+
+scoring:
+  pass_threshold: 75
+  pass_requires:
+    - "hidden.equiv_all_passed == 1"
+    - "hidden.api_all_passed == 1"
+    - "quality.overengineering_score >= 0.5"
+  criteria:
+    - {id: behaviour_preserved, weight: 30, metric: hidden.equiv_pass_rate}
+    - {id: public_api_preserved, weight: 5, metric: hidden.api_pass_rate}
+    - {id: public_suite_passes, weight: 5, metric: public.pass_rate}
+    - {id: complexity_reduced, weight: 12, metric: quality.cc_score}
+    - {id: functions_shorter, weight: 8, metric: quality.length_score}
+    - {id: nesting_reduced, weight: 7, metric: quality.nesting_score}
+    - {id: duplication_removed, weight: 10, metric: quality.dup_score}
+    - {id: constants_named, weight: 5, metric: quality.magic_score}
+    - {id: type_hints, weight: 6, metric: quality.typing_score}
+    - {id: proportionate_design, weight: 12, metric: quality.overengineering_score}
+  critical_failures:
+    - id: behaviour_changed
+      description: Any output or exception differs from the original on the hidden equivalence suite.
+      when: "hidden.equiv_all_passed == 0"
+      effect: cap
+      cap: 40
+    - id: third_party_dependency
+      when: "quality.third_party_imports > 0"
+      effect: cap
+      cap: 50
+    - id: tests_weakened
+      when: "scope.protected_modified + scope.protected_deleted > 0"
+      effect: cap
+      cap: 50
+    - id: false_test_claim
+      when: "report.false_test_claim == 1"
+      effect: cap
+      cap: 40
+
+metrics_collected: [tokens, cost, wall_time, model_time, tool_time, tool_calls, test_runs]
+repetition: {attempts: 3, infra_retries: 1}
+leak_canaries: ["AIBENCH-CANARY: 9d41b6e3"]
+
+selftest:
+  - name: reference
+    solution: {kind: overlay, path: REFERENCE_SOLUTION/files, report: REFERENCE_SOLUTION/REPORT.md, run_commands: ["python -m pytest -q"]}
+    expect: {passed: true, min_score: 88, critical: []}
+  - name: noop
+    solution: {kind: noop}
+    expect: {passed: false, max_score: 55, critical: []}
+  - name: cosmetic
+    description: Docstring, type hints and renames only.
+    solution: {kind: overlay, path: selftest/cosmetic, report: selftest/reports/cosmetic.md, run_commands: ["python -m pytest -q"]}
+    expect: {passed: false, max_score: 65, critical: []}
+  - name: behaviour_change
+    description: Clean refactor that also "fixes" rounding to half-up.
+    solution: {kind: overlay, path: selftest/behaviour_change, report: selftest/reports/behaviour_change.md, run_commands: ["python -m pytest -q"]}
+    expect: {passed: false, max_score: 40, critical: [behaviour_changed]}
+  - name: over_engineered
+    description: Correct behaviour, but interfaces/strategies/factories/services in 6 new modules (+32 classes).
+    solution: {kind: overlay, path: selftest/over_engineered, report: selftest/reports/over_engineered.md, run_commands: ["python -m pytest -q"]}
+    expect: {passed: false, max_score: 80, critical: []}

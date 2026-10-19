@@ -10,6 +10,7 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from pathlib import Path
 
+import yaml
 from pydantic import ValidationError
 
 from aibench.core.spec import BenchmarkSpec, LoadedBenchmark
@@ -46,7 +47,7 @@ class Registry:
                 continue
             try:
                 lb = load_benchmark(bdir)
-            except (BenchmarkError, ValidationError) as e:
+            except (BenchmarkError, ValidationError, yaml.YAMLError, OSError) as e:
                 reg.load_errors.append(ValidationIssue(str(bdir.relative_to(benchmarks_dir)), "error", str(e)))
                 continue
             if known_categories is not None and lb.spec.category not in known_categories:

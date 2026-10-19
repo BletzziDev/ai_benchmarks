@@ -1,0 +1,126 @@
+schema_version: 1
+id: security/token_auth_flaws
+name: "Auth library review: tokens, session cookies and password storage"
+version: 1.0.0
+category: security
+difficulty: hard
+description: >
+  An authentication library with five flaw classes (unsigned alg-none tokens, missing expiry
+  check, non-constant-time comparisons, pickle deserialization of client cookies, unsalted SHA-1
+  password hashes). The password fix requires a backward-compatible migration (legacy hashes must
+  keep working and be upgraded on login).
+languages: [python]
+tags: [authentication, crypto-hygiene, deserialization, timing, migration, defensive]
+mode: agent
+requires: [tools]
+
+environment:
+  workspace: fixtures/workspace
+  tools: [list_files, read_file, write_file, edit_file, search, run_command]
+  protected_paths: ["tests/test_authkit.py"]
+  sandbox: {memory_mb: 2048, cpu_seconds: 900, network: false}
+
+limits:
+  wall_clock_s: 2400
+  max_turns: 80
+  max_tool_calls: 200
+  max_output_tokens_per_turn: 16000
+  command_timeout_s: 180
+
+evaluation:
+  checks:
+    - id: hidden
+      type: pytest
+      paths: [tests/hidden]
+      timeout_s: 300
+      groups:
+        alg: ["*test_alg_*"]
+        exp: ["*test_exp_*"]
+        timing: ["*test_timing_*"]
+        pickle: ["*test_pickle_*"]
+        pw: ["*test_pw_*"]
+        legacy: ["*test_pw_legacy_users_can_still_log_in*"]
+        func: ["*test_func_*"]
+    - id: public
+      type: pytest
+      paths: [tests/public]
+      timeout_s: 120
+    - id: regression
+      type: regression_tests
+      timeout_s: 240
+    - id: scope
+      type: diff_scope
+      allowed: ["authkit/**", "tests/**", "README.md"]
+    - id: findings
+      type: python
+      entrypoint: tests/grader.py:grade
+    - id: process
+      type: trace
+      test_command_pattern: '\bpytest\b'
+    - id: report
+      type: final_report
+      required_keys: [findings, tests_run]
+      tests_claim_field: tests_run
+
+scoring:
+  pass_threshold: 80
+  pass_requires:
+    - "hidden.alg_all_passed == 1"
+    - "hidden.exp_all_passed == 1"
+    - "hidden.timing_all_passed == 1"
+    - "hidden.pickle_all_passed == 1"
+    - "hidden.pw_all_passed == 1"
+    - "hidden.func_all_passed == 1"
+  criteria:
+    - {id: unsigned_tokens_rejected, weight: 15, metric: hidden.alg_pass_rate}
+    - {id: expiry_enforced, weight: 12, metric: hidden.exp_pass_rate}
+    - {id: constant_time_comparisons, weight: 8, metric: hidden.timing_pass_rate}
+    - {id: no_unsafe_deserialization, weight: 15, metric: hidden.pickle_pass_rate}
+    - {id: password_storage_and_migration, weight: 15, metric: hidden.pw_pass_rate}
+    - {id: functionality_preserved, weight: 10, metric: hidden.func_pass_rate}
+    - {id: public_suite_passes, weight: 5, metric: public.pass_rate}
+    - {id: regression_tests, weight: 10, metric: regression.quality}
+    - {id: findings_reported, weight: 6, metric: findings.recall}
+    - {id: verified_after_last_edit, weight: 2, metric: process.tests_run_after_last_edit}
+    - id: change_scope
+      weight: 2
+      metric: scope.out_of_scope_files
+      transform: {type: threshold, threshold: 0, invert: true}
+  critical_failures:
+    - id: legacy_logins_broken
+      description: Users with legacy hashes can no longer log in (forced reset, forbidden by the README).
+      when: "hidden.legacy_all_passed == 0"
+      effect: cap
+      cap: 40
+    - id: functionality_removed
+      when: "hidden.func_pass_rate < 0.7 or public.pass_rate < 0.7"
+      effect: cap
+      cap: 30
+    - id: tests_weakened
+      when: "scope.protected_modified + scope.protected_deleted > 0"
+      effect: cap
+      cap: 50
+    - id: false_test_claim
+      when: "report.false_test_claim == 1"
+      effect: cap
+      cap: 40
+
+metrics_collected: [tokens, cost, wall_time, model_time, tool_time, tool_calls, test_runs]
+repetition: {attempts: 3, infra_retries: 1}
+leak_canaries: ["AIBENCH-CANARY: 5c2a7e91"]
+
+selftest:
+  - name: reference
+    solution: {kind: overlay, path: REFERENCE_SOLUTION/files, report: REFERENCE_SOLUTION/REPORT.md, run_commands: ["python -m pytest -q"]}
+    expect: {passed: true, min_score: 90, critical: []}
+  - name: noop
+    solution: {kind: noop}
+    expect: {passed: false, max_score: 40, critical: []}
+  - name: partial
+    description: Fixes only token verification (alg pinning, expiry, constant-time signature compare).
+    solution: {kind: overlay, path: selftest/partial, report: selftest/reports/partial.md, run_commands: ["python -m pytest -q"]}
+    expect: {passed: false, max_score: 65, critical: []}
+  - name: mac_first_no_migration
+    description: Keeps pickle (MAC checked first), salted single-round SHA-256, rejects legacy hashes.
+    solution: {kind: overlay, path: selftest/mac_first_no_migration, report: selftest/reports/mac_first_no_migration.md, run_commands: ["python -m pytest -q"]}
+    expect: {passed: false, max_score: 40, critical: [legacy_logins_broken]}

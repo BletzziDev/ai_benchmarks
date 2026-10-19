@@ -1,0 +1,9 @@
+id,date,customer,type,amount,currency,category
+T001,2024-03-01,C001,sale,120.00,USD,books
+T002,2024-03-02,C002,sale,80.50,EUR,music
+T003,2024-03-03,C001,refund,20.00,USD,books
+T004,2024-03-05,C003,sale,300.00,GBP,electronics
+T005,2024-03-09,,fee,12.00,USD,
+T006,2024-03-12,C002,chargeback,80.50,EUR,music
+T007,2024-03-15,C004,sale,999.99,BRL,electronics
+T008,2024-04-01,C001,sale,45.00,USD,books
