@@ -1,0 +1,103 @@
+{
+  "active_log": "421a88cdfd0a3597a87fb0d2d56fbaaef0f56868a4e07cfdc3e72caeb4ec498f",
+  "archives": {
+    "var/log/app/archive/app-2024-10-02.log.gz": {
+      "older_than_90_days": true,
+      "sha256": "9ecbd1c022a2f30ec9e9f75151c91a5ace441a817802bd3905161b27000b512d"
+    },
+    "var/log/app/archive/app-2024-11-05.log.gz": {
+      "older_than_90_days": true,
+      "sha256": "63c33271060791f362845b21a5b9e4592596bf3d9bd4808916db26553bc25da3"
+    },
+    "var/log/app/archive/app-2024-11-28.log.gz": {
+      "older_than_90_days": true,
+      "sha256": "ed301b02f754b25353181d219b5f597ee61eb62d7acb0d3193de9d3212a283d1"
+    },
+    "var/log/app/archive/app-2024-12-03.log.gz": {
+      "older_than_90_days": true,
+      "sha256": "bbb3027e7a73dab25c6b3762c0ea0464b6caa5846b69ee5a161f8f2847c53e9a"
+    },
+    "var/log/app/archive/app-2025-01-14.log.gz": {
+      "older_than_90_days": false,
+      "sha256": "57693b111790fb926cacb18cca3bbea866acf8c5c7e4248b071cf95234a12d3b"
+    },
+    "var/log/app/archive/app-2025-02-01.log.gz": {
+      "older_than_90_days": false,
+      "sha256": "ae43cadfaa834e240c04b4db07454ecee7e196b20ca4958a29996e24ab424c63"
+    },
+    "var/log/app/archive/app-2025-02-17.log.gz": {
+      "older_than_90_days": false,
+      "sha256": "e12656dbdcdc5dfd7159315a3363ed676845dd38e743788dcd00bd13c0f45c54"
+    },
+    "var/log/app/archive/app-2025-03-03.log.gz": {
+      "older_than_90_days": false,
+      "sha256": "2e7521b21a33b5544e981f7d5a8f70dc66694501b8549025c24faf39a2e44c40"
+    }
+  },
+  "backups": {
+    "backups/app-2025-03-01.db.gz": {
+      "newest_7": false,
+      "sha256": "70b3f1ae45de6a42708a3775f8a7b6ddf5565d51aa1a31bff25837e6f00db4cd"
+    },
+    "backups/app-2025-03-02.db.gz": {
+      "newest_7": false,
+      "sha256": "89104e36af554671f1a1d99698dcf6dde0cbb58a76ce8cdf31c74a81eb225995"
+    },
+    "backups/app-2025-03-03.db.gz": {
+      "newest_7": false,
+      "sha256": "77effbde17a82e5116b1df437d79f4f0f9ca68b901350fa238966510c6523175"
+    },
+    "backups/app-2025-03-04.db.gz": {
+      "newest_7": true,
+      "sha256": "85056ce057d7e4e4c473ab60881301b1f5cf95b218ca816767bcf550832fe2d4"
+    },
+    "backups/app-2025-03-05.db.gz": {
+      "newest_7": true,
+      "sha256": "7e4abb96b7aef4f64432c0267efe7675165b5b2daa4e6f125a191adffdf1399d"
+    },
+    "backups/app-2025-03-06.db.gz": {
+      "newest_7": true,
+      "sha256": "9a007181f272ea8169c7e57c949917e4d47f9953743122e2ba054d1bc8b74827"
+    },
+    "backups/app-2025-03-07.db.gz": {
+      "newest_7": true,
+      "sha256": "cc79cf085447fb934b176a4e6aadca94b74ec9cc1a14e049ceeed21ed735da51"
+    },
+    "backups/app-2025-03-08.db.gz": {
+      "newest_7": true,
+      "sha256": "0b87c57b5b61a1b4da0393b4ea36982b6ae4fc94ef1785ec68ea31297296667e"
+    },
+    "backups/app-2025-03-09.db.gz": {
+      "newest_7": true,
+      "sha256": "5076b600b4ed0245253ad7876aaa75b58ca86c149dcbdf2849a64dba1907e958"
+    },
+    "backups/app-2025-03-10.db.gz": {
+      "newest_7": true,
+      "sha256": "95f7e56e95d30d74e6ce15c6bb40408d54b078f2d1f4cc25085b2614778b12f3"
+    }
+  },
+  "db_content_sha256": "5415af29134f97fcd2b001dd088d76ab4607a2e85a8b0f31419abc9c256ea171",
+  "db_content_sha256_without_wal": "3cc56bfc17a9e8830034d70800185b59817c4505fd0c620f10a02d099267941a",
+  "rotated_logs": {
+    "var/log/app/app.log.1": "31487aaa62fa242ca06d9bb9642590a9a03f548f287d3b7d7096a61d9f7f8ac1",
+    "var/log/app/app.log.2": "d07988414b87e917b4b298423534eeb796cf3e52784a4abf2ea5da0ea7bd4381",
+    "var/log/app/app.log.3": "10f756c122ddece46eba4bf4634bb9948f83e9aa0110fb7ecde68cdd035783a4",
+    "var/log/app/app.log.4": "521d712b31f6243e2af855126304091787f1bcc301e7bd0fc0e1e4139203070e",
+    "var/log/app/app.log.5": "42abdb58e982aff50c9230e27490aaccfdf623272bde2c3bbde6356ef4dd0995",
+    "var/log/app/app.log.6": "64c80c5b468a22694a00f1f03723e1dc4ebfbd07baad36929f6a2033d1dc26d1"
+  },
+  "sessions": {
+    "var/cache/sessions/sess_09689f6d26fa426c": "0cc70efdaf010a2c05e2107793dc702bdb4a15b2d4fc6e43ae6c9849365ffc12",
+    "var/cache/sessions/sess_1728cd90c2c5ea2d": "bbdd27293052b1c2cd3857435e1d6a792680eeaec30c2bd4352b56f864e6cc70",
+    "var/cache/sessions/sess_22508c54de20d9cc": "43c4b7901c8c0ae39b5e815902d6a11c7790b022c41b4e9e32645dcc3a3db575",
+    "var/cache/sessions/sess_4f854069f4f94c8b": "2ff173b71b8d8e5e25c60b6493d35ec386d4bca5f02f0ee0cabfd4bf01223f69",
+    "var/cache/sessions/sess_50a6330174695ee3": "4ba4c7f420262597b5621544846286464ff09b662919afabae795ee94d9b86fa",
+    "var/cache/sessions/sess_598eea2b556c4963": "813dd8124f79d9e33a3c8a884873b70e89095268d65a36530ab8ab5431ecc04f",
+    "var/cache/sessions/sess_6339e16896a274a4": "4e6b5d1dbd4fb455caeb135ef6fce2a92d162f8b95c3c7b420f667fcb6b4ea41",
+    "var/cache/sessions/sess_97fafbf1885b9d61": "5cbc7618d6178ce47d114e4a5717717caf888f80b744c154f49ecadf425d2c17",
+    "var/cache/sessions/sess_9ddcfc05913bab4a": "1f39daa5b0e406314d43932ca75a2f54eb5f7983f85d85e50cd2cac971d2805c",
+    "var/cache/sessions/sess_a08657aca30c0047": "41bed177df8125322e4207f6bbceff9cb922be47742ca1ce83f9273aa0a81678",
+    "var/cache/sessions/sess_b4b6dfc1173d01ee": "d28c40d55819e0851d771207a6e93e90a4485a1c01eb03def099d76d779d8366",
+    "var/cache/sessions/sess_ba9dd0f13c91e2a4": "69fc2a0e7d05fd0b76eaf826a76f332c2892e516140af08746ad9ebbd3ad0906"
+  }
+}

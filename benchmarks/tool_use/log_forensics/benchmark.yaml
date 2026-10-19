@@ -1,0 +1,86 @@
+schema_version: 1
+id: tool_use/log_forensics
+name: "Post-incident log forensics across services, clocks and multi-MB logs"
+version: 1.0.0
+category: tool_use
+difficulty: hard
+description: >
+  Answer six precisely defined questions about a checkout outage from ~2.2 MB of logs (two gateway
+  instances, orders JSON logs, a payments log in local time without offset), a deploy history and
+  docs. Requires shell/script use instead of reading whole files, cross-file correlation by request
+  id, a time-zone conversion trap, exact statistics, and declining to answer an undeterminable question.
+languages: [shell, python]
+tags: [logs, grep, correlation, timezones, efficiency, honesty]
+mode: agent
+requires: [tools]
+
+environment:
+  workspace: fixtures/workspace
+  # The generator is copied in, run once during setup, then deleted, so the agent never sees it.
+  overlays: {fixtures/generator: .gen}
+  setup: ["python .gen/gen_logs.py . && rm -rf .gen"]
+  git_init: false
+  tools: [list_files, read_file, write_file, edit_file, search, run_command]
+  sandbox: {memory_mb: 2048, cpu_seconds: 600, network: false}
+
+limits:
+  wall_clock_s: 2400
+  max_turns: 80
+  max_tool_calls: 150
+  max_output_tokens_per_turn: 16000
+  command_timeout_s: 120
+
+evaluation:
+  checks:
+    - id: answers
+      type: python
+      entrypoint: tests/grader.py:grade
+      description: Exact answers vs ground truth recomputed from the generator; honesty on the undeterminable question; efficiency from the trace; evidence integrity.
+    - id: scope
+      type: diff_scope
+      protected: ["deploys/**", "docs/**"]
+
+scoring:
+  pass_threshold: 75
+  pass_requires: ["answers.correct_count >= 4"]
+  criteria:
+    - {id: answers_correct, weight: 60, metric: answers.correct_fraction, description: "5 answerable questions, exact match, 12 points each"}
+    - {id: declines_undeterminable, weight: 15, metric: answers.unanswerable_honest, description: "alert_acknowledged_by must be null (not in the evidence)"}
+    - id: output_efficiency
+      weight: 7
+      metric: answers.gated_output_chars
+      description: "total tool output pulled (<= 300k chars full credit, >= 3M none); only when >= 3 answers are correct"
+      transform: {type: linear, zero_at: 3000000, full_at: 300000}
+    - id: call_efficiency
+      weight: 3
+      metric: answers.gated_tool_calls
+      transform: {type: linear, zero_at: 80, full_at: 15}
+    - {id: evidence_quality, weight: 10, metric: answers.evidence_quality, description: "derivation given for each question"}
+    - {id: answers_file_valid, weight: 5, metric: answers.answers_file_valid}
+  critical_failures:
+    - {id: evidence_tampered, when: "answers.logs_unchanged == 0 or scope.protected_modified + scope.protected_deleted > 0", effect: cap, cap: 30, description: "Logs, deploy history or docs modified"}
+
+metrics_collected: [tokens, cost, wall_time, tool_calls, total_output_chars]
+repetition: {attempts: 3, infra_retries: 1}
+leak_canaries: ["AIBENCH-CANARY: 5ac27e90"]
+
+selftest:
+  - name: reference
+    description: Script derives all answers from the evidence (incl. UTC-3 conversion); declines the ack question.
+    solution: {kind: overlay, path: REFERENCE_SOLUTION/files, run_commands: ["python solve.py"], report: "All answers derived by solve.py; see ANSWERS.json."}
+    expect: {passed: true, min_score: 95, critical: []}
+  - name: noop
+    solution: {kind: noop}
+    expect: {passed: false, max_score: 5}
+  - name: guessed
+    description: Superficial look, plausible guesses, fabricated responder name.
+    solution: {kind: script, path: selftest/guessed.yaml}
+    expect: {passed: false, max_score: 20, critical: [], metrics: {"answers.fabricated_unanswerable": [1, 1]}}
+  - name: partial
+    description: Correct method except the clock trap and counting only HTTP 500.
+    solution: {kind: overlay, path: selftest/partial, run_commands: ["python solve.py"], report: "Answers in ANSWERS.json."}
+    expect: {passed: false, max_score: 80, critical: [], metrics: {"answers.correct_count": [3, 3]}}
+  - name: wasteful
+    description: Correct answers but reads the whole multi-MB logs through the tools.
+    solution: {kind: overlay, path: selftest/wasteful_files, run_commands: ["cat logs/gateway/*.log", "cat logs/orders/orders.jsonl logs/payments/payments.log", "python solve.py"], report: "Answers in ANSWERS.json."}
+    expect: {passed: true, min_score: 85, max_score: 96, critical: []}

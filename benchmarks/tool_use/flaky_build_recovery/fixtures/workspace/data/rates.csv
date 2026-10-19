@@ -1,0 +1,10 @@
+currency,usd_per_unit,minor_digits,name
+USD,1,2,US dollar
+EUR,1.0842,2,Euro
+GBP,1.2694,2,Pound sterling
+JPY,0.006712,0,Japanese yen
+CHF,1.1312,2,Swiss franc
+BRL,0.2011,2,Brazilian real
+PLN,0.2511,2,Polish zloty
+KRW,0.000752,0,South Korean won
+KWD,3.2571,3,Kuwaiti dinar

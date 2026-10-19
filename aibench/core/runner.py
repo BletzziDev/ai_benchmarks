@@ -250,14 +250,15 @@ class Runner:
                 sb = make_sandbox(self.backend, spec.environment.sandbox, self.config.suite.sandbox,
                                   max_output_chars=self.config.suite.harness.max_logged_output_chars)
                 prepare_workspace(bench, sb.root)
-                copy_tree(sb.root, tmp_orig)
-                original_ws = tmp_orig
                 sb.start()
                 for cmd in spec.environment.setup:
                     r = sb.run(cmd, timeout_s=limits.command_timeout_s)
                     trace.emit("setup_command", **r.summary())
                     if not r.ok:
                         raise RuntimeError(f"setup command failed: {cmd}: {r.stderr[-500:]}")
+                # "Original" = exactly what the agent starts from (after setup), so diffs only show its changes.
+                copy_tree(sb.root, tmp_orig)
+                original_ws = tmp_orig
                 prompt = bench.resolve(spec.prompt).read_text(encoding="utf-8")
                 (adir / "prompt.md").write_text(prompt, encoding="utf-8")
                 if isinstance(adapter, AgentAdapter):
@@ -374,8 +375,10 @@ class Runner:
             transcripts[cid] = [m.to_json() for m in r.messages]
             if r.termination == "model_error":
                 errors += 1
-        if errors and errors == len(cases):
-            raise _InfraError("model errors on every case")
+        if errors:
+            # Provider errors are not model behaviour: retry the whole attempt (infra_retries) and, if they
+            # persist, record infra_error instead of scoring missing answers as wrong.
+            raise _InfraError(f"model errors on {errors}/{len(cases)} cases")
         write_json(adir / "cases.json", results)
         episode = {"termination": "completed", "cases": len(cases), "case_errors": errors}
         return episode, results, "", [{"case_transcripts": transcripts}]

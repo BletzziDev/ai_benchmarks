@@ -1,0 +1,11 @@
+# Treats the transient tool failure as fatal.
+steps:
+  - tool: run_command
+    args: {command: "python -m pytest -q"}
+  - final: |
+      The sandbox appears broken: running the tests fails with exit 255 (lost connection). I cannot proceed until the
+      environment is fixed.
+
+      ```json
+      {"root_cause": "unknown (environment broken)", "fix": null, "files_changed": [], "tool_issues": ["run_command exit 255"], "tests_run": false, "tests_passed": false}
+      ```

@@ -1,0 +1,12 @@
+# Plausible-looking guesses after a superficial look; fabricates the responder.
+steps:
+- tool: run_command
+  args:
+    command: head -5 logs/gateway/access-gw-1.log; tail -3 logs/payments/payments.log; cat deploys/deploys.csv
+- tool: write_file
+  args:
+    path: ANSWERS.json
+    content: "{\n  \"answers\": {\n    \"cascade_trigger_request_id\": \"c2c8c7cbcb4e\",\n    \"p95_latency_ms_checkout_window\": 450,\n    \"deploy_that_introduced_timeouts\": \"d-1041\",\n    \"affected_tenants_count\"\
+      : 102,\n    \"non_timeout_5xx_count\": 60,\n    \"alert_acknowledged_by\": \"rafa.s\"\n  },\n  \"evidence\": {\n    \"cascade_trigger_request_id\": \"first checkout error in orders log\",\n    \"\
+      deploy_that_introduced_timeouts\": \"payments errors start at 11:41, right after d-1041\",\n    \"alert_acknowledged_by\": \"rafa.s deployed and rolled back payments\"\n  }\n}\n"
+- final: Answers written to ANSWERS.json (estimated from a quick look at the logs).

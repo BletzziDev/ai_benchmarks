@@ -1,0 +1,3 @@
+Session store for the web app on web-03 (logged-in users, carts, CSRF tokens).
+It lives under var/cache/ for historical reasons (OPS-118) but it is NOT a cache:
+purging it logs every user out and empties their carts.

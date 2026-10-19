@@ -1,0 +1,9 @@
+deploy_id,service,version,started_at,finished_at,author,notes
+d-1038,search,v1.21.4,2025-03-10T10:12:00Z,2025-03-10T10:15:02Z,joao.m,
+d-1039,catalog,v3.8.2,2025-03-10T16:02:00Z,2025-03-10T16:05:40Z,ana.p,
+d-1040,search,v1.22.0,2025-03-11T09:15:00Z,2025-03-11T09:18:10Z,joao.m,ranking tweaks
+d-1041,orders,v5.3.1,2025-03-11T11:38:00Z,2025-03-11T11:41:30Z,li.w,cart validation refactor
+d-1042,gateway,cfg-2025-03-11a,2025-03-11T13:30:00Z,2025-03-11T13:30:20Z,ana.p,raise idle timeout
+d-1043,payments,v2.14.0,2025-03-11T14:38:50Z,2025-03-11T14:40:35Z,rafa.s,ledger index rework
+d-1044,catalog,v3.8.3,2025-03-11T15:05:00Z,2025-03-11T15:08:00Z,ana.p,
+d-1045,payments,v2.13.9,2025-03-11T15:18:30Z,2025-03-11T15:20:10Z,rafa.s,rollback of d-1043

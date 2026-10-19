@@ -125,3 +125,47 @@ def test_usage_accumulation():
     u = Usage(1, 2, reported=True).add(Usage(None, None))
     assert (u.input_tokens, u.output_tokens, u.reported) == (1, 2, True)
     assert Usage().total is None
+
+
+def test_anthropic_agent_episode_end_to_end(tmp_suite, monkeypatch):
+    """Full runner episode through the real Anthropic adapter against a fake Messages API."""
+    pytest.importorskip("anthropic")
+    from aibench.core.config import load_config
+    from aibench.core.registry import Registry
+    from aibench.core.runner import Runner
+    from aibench.core.util import read_json
+    from conftest import make_agent_benchmark
+
+    make_agent_benchmark(tmp_suite)
+    fix = "def add(a, b):\n    return a + b\n"
+    srv = FakeServer([
+        (200, {"id": "m1", "type": "message", "role": "assistant", "model": "claude-test", "stop_reason": "tool_use",
+               "stop_sequence": None, "usage": {"input_tokens": 500, "output_tokens": 40},
+               "content": [{"type": "thinking", "thinking": "", "signature": "sig-1"},
+                           {"type": "tool_use", "id": "toolu_a", "name": "write_file", "input": {"path": "calc.py", "content": fix}}]}),
+        (200, {"id": "m2", "type": "message", "role": "assistant", "model": "claude-test", "stop_reason": "tool_use",
+               "stop_sequence": None, "usage": {"input_tokens": 600, "output_tokens": 30},
+               "content": [{"type": "tool_use", "id": "toolu_b", "name": "run_command", "input": {"command": "python -m pytest -q"}}]}),
+        (200, {"id": "m3", "type": "message", "role": "assistant", "model": "claude-test", "stop_reason": "end_turn",
+               "stop_sequence": None, "usage": {"input_tokens": 700, "output_tokens": 20},
+               "content": [{"type": "text", "text": "Fixed add()."}]}),
+    ])
+    monkeypatch.setenv("FAKE_KEY", "k")
+    cfg = load_config(tmp_suite)
+    cfg.models.models["anthropic/fake"] = ModelConfig(
+        adapter="anthropic", model="claude-test", api_key_env="FAKE_KEY", base_url=srv.url,
+        pricing=Pricing(input_per_mtok=2, output_per_mtok=10, source="test", as_of="2026-01-01"))
+    reg = Registry.discover(cfg.benchmarks_dir, set(cfg.suite.categories))
+    runner = Runner(cfg, reg, echo=False)
+    store = runner.create_run([reg.get("tiny")], "anthropic/fake", attempts=1)
+    outs = runner.execute(store)
+    srv.close()
+    assert outs[0].passed is True
+    second = srv.requests[1]["body"]["messages"]
+    assert second[1]["content"][0] == {"type": "thinking", "thinking": "", "signature": "sig-1"}  # replayed verbatim
+    assert second[2]["content"][0]["type"] == "tool_result" and second[2]["content"][0]["tool_use_id"] == "toolu_a"
+    assert srv.requests[0]["body"]["system"].startswith("You are an AI software engineer")
+    ev = read_json(store.attempt_dir("bug_fixing/tiny", 1) / "evaluation.json")
+    u = ev["usage"]
+    assert (u["input_tokens"], u["output_tokens"], u["usage_status"]) == (1800, 90, "reported")
+    assert u["cost_usd"] == pytest.approx((1800 * 2 + 90 * 10) / 1e6)

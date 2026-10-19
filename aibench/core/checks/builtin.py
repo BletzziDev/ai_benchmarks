@@ -147,7 +147,8 @@ def check_pytest(check: CheckSpec, ctx: GradingContext) -> CheckResult:
     last = None
     for i in range(repeat):
         sb = ctx.new_sandbox(src_dir, overlays)
-        removed = _sanitize(ctx, sb.root) if p.get("sanitize", True) else []
+        # Sanitising protects injected hidden tests; the agent's own suite may legitimately need its conftest.
+        removed = _sanitize(ctx, sb.root) if p.get("sanitize", bool(inject)) else []
         targets = [f"{HIDDEN_DIR}/{Path(s).name}" for s in inject] + list(ws_paths)
         cases, last = run_pytest_in(sb, targets, check.timeout_s, p.get("args"), isolated=bool(inject) and not ws_paths)
         all_runs.append(cases)
@@ -357,7 +358,10 @@ def check_trace(check: CheckSpec, ctx: GradingContext) -> CheckResult:
     tests = [i for i, e in cmds if test_rx.search(str(e["arguments"].get("command", "")))]
     last_edit = edits[-1] if edits else -1
     # Shell commands can also edit files; treat redirections/sed -i as edits for ordering purposes.
-    shell_edit_rx = re.compile(r"(>\s*[\w./-]+|sed\s+-i|tee\s|mv\s|cp\s|rm\s|git\s+(apply|checkout|restore))")
+    # Conservative: anything that may change files (incl. running a non-test script) counts as an edit.
+    shell_edit_rx = re.compile(r"(>\s*[\w./-]+|\bsed\s+-i|\bperl\s+-[a-z]*i|\btee\s|\bmv\s|\bcp\s|\brm\s|\btouch\s|"
+                               r"\bmkdir\s|\bchmod\s|\btruncate\s|\bg?zip\b|\bgunzip\b|\btar\s|\bpatch\b|"
+                               r"\bgit\s+(apply|checkout|restore|reset|stash|am|merge|rebase)|\bpython3?\s+(?!-m\s+pytest)\S+\.py)")
     for i, e in cmds:
         if shell_edit_rx.search(str(e["arguments"].get("command", ""))) and i not in tests:
             last_edit = max(last_edit, i)

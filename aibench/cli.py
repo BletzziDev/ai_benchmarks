@@ -376,7 +376,18 @@ def build_parser() -> argparse.ArgumentParser:
     return p
 
 
+def _sigterm_as_interrupt(signum, frame):  # noqa: ARG001
+    raise KeyboardInterrupt
+
+
 def main(argv: list[str] | None = None) -> int:
+    import signal
+    import threading
+
+    if threading.current_thread() is threading.main_thread():
+        # SIGTERM (e.g. a CI timeout) takes the same clean path as Ctrl-C: sandboxes are closed,
+        # the attempt is marked "interrupted" and the run can be resumed.
+        signal.signal(signal.SIGTERM, _sigterm_as_interrupt)
     args = build_parser().parse_args(argv)
     cfg = load_config(Path(args.root) if args.root else None, Path(args.models_file) if args.models_file else None)
     _load_env_file(cfg.root)
