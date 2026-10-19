@@ -1,0 +1,54 @@
+{
+  "runs": [
+    "demo-reference",
+    "demo-noop"
+  ],
+  "warnings": [],
+  "pairs": [
+    {
+      "n_pairs": 20,
+      "mean_diff": 78.1046,
+      "ci_low": 69.75135,
+      "ci_high": 85.9554,
+      "wins": 20,
+      "losses": 0,
+      "ties": 0,
+      "verdict": "A better (CI excludes 0)",
+      "keys": [
+        "advanced_reasoning/perf_complexity_regression",
+        "advanced_reasoning/pricing_rules_state_bug",
+        "architecture/zero_downtime_migration",
+        "bug_fixing/date_range_billing",
+        "bug_fixing/inventory_reservations",
+        "code_quality/legacy_report_refactor",
+        "concurrency/async_cancellation_leak",
+        "concurrency/payment_double_charge",
+        "concurrency/transfer_deadlock",
+        "decision_making/disk_pressure_incident",
+        "decision_making/judgment_scenarios",
+        "frontend_design/agent_platform_site",
+        "hallucination/closed_world_sdk",
+        "hallucination/diagnostic_uncertainty",
+        "long_horizon_autonomy/saas_accounts",
+        "security/notes_service_vulns",
+        "security/token_auth_flaws",
+        "sycophancy/code_review_pressure",
+        "tool_use/flaky_build_recovery",
+        "tool_use/log_forensics"
+      ],
+      "a": "scripted/reference",
+      "b": "scripted/noop"
+    }
+  ],
+  "ranking": [
+    [
+      "scripted/reference",
+      99.70983333333334
+    ],
+    [
+      "scripted/noop",
+      19.649597222222223
+    ]
+  ],
+  "ranking_note": null
+}

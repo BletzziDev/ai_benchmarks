@@ -55,6 +55,7 @@ class ScriptedAdapter(ModelAdapter):
         self._case = case_id
         self._turn = 0
         self._queue = []
+        self._chat = {}  # reset per episode: state must never leak between benchmarks of one run
         if spec.mode == "chat":
             if solution.kind == "responses":
                 data = load_yaml(benchmark.resolve(solution.path))

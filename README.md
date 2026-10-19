@@ -103,6 +103,17 @@ Design decisions (details in `docs/`):
 Each benchmark's `EVAL.md` lists its criteria and weights, critical failures, the observed selftest
 scores and its limitations; `benchmark show <id>` prints the full configuration.
 
+## Verification (executed for v0.1)
+
+| Check | Result |
+|---|---|
+| `benchmark validate` | 20 benchmarks, 0 errors |
+| `python -m pytest -q tests` (framework tests + every benchmark's selftests, local sandbox) | 78 passed (≈15 min) |
+| `benchmark selftest --all --sandbox docker` | 114/114 selftest cases behaved as declared |
+| `tests/verify_ground_truth.py` (chat benchmarks: labels verified by executing code / checking claims) | all pass |
+| `scripts/make_demo_results.py` (scripted reference vs no-op over all benchmarks) | 99.7 vs 19.6 overall; paired Δ = 78.1 [69.8, 86.0] — see `results/demo/` |
+| Real model evaluations | **not run** — no model API credentials were available in the build environment |
+
 ## What a report contains
 
 Per run: overall score (mean of category means) **next to** the competency profile, pass rate,

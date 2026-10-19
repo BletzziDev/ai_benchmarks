@@ -1,0 +1,564 @@
+{
+  "run_id": "demo-reference",
+  "created_at": "2026-10-19T05:02:26+00:00",
+  "state": "completed",
+  "harness_version": "0.1.0",
+  "repo": {
+    "commit": "77230483bac2eeef6d4a00dc76c0087f9f1bee34",
+    "dirty": true
+  },
+  "tools": {
+    "python": "3.13.16",
+    "platform": "Linux-6.18.44-fc-v139-x86_64-with-glibc2.39",
+    "harness": "0.1.0",
+    "pytest": "9.1.1",
+    "hypothesis": "6.170.1",
+    "playwright": "unknown",
+    "pydantic": "2.13.5",
+    "yaml": "6.0.1",
+    "anthropic": "1.15.0",
+    "docker": "29.8.2",
+    "cpu_count": 4
+  },
+  "model": {
+    "label": "scripted/reference",
+    "adapter": "scripted",
+    "kind": "scripted",
+    "model": null,
+    "base_url": null,
+    "applied_params": {},
+    "dropped_params": {},
+    "provider_options": {},
+    "capabilities": {
+      "tool_calling": true,
+      "system_prompt": true,
+      "vision": true,
+      "usage_reporting": false,
+      "seed": false,
+      "sampling_params": false
+    },
+    "pricing": null
+  },
+  "system_kind": "scripted",
+  "tier": null,
+  "sandbox": {
+    "backend": "local",
+    "network_isolated": true,
+    "privileges_dropped": true,
+    "limits": {
+      "memory_mb": 2048,
+      "cpu_seconds": 900,
+      "max_file_mb": 64,
+      "max_processes": 1024,
+      "max_workspace_mb": 512,
+      "network": false
+    },
+    "notes": []
+  },
+  "judges": [],
+  "allow_self_judge": false,
+  "harness": {
+    "agent_system_prompt": "configs/prompts/agent_system.md",
+    "chat_system_prompt": "configs/prompts/chat_system.md",
+    "max_tool_output_chars": 20000,
+    "max_logged_output_chars": 2000000,
+    "context_strategy": "none",
+    "context_budget_tokens": 400000,
+    "file_hashes": {
+      "agent_system_prompt": "a9df15a8b2486e2645d5f0fe233b6dad4ae3a55fffaf6ef7c8660dda4d1f6d84",
+      "chat_system_prompt": "b60e7feba173cbe66e091cb04d7d1411baffd953ae0538264928eb4eda345a27"
+    }
+  },
+  "command_policy": {
+    "deny_patterns": [
+      "\\brm\\s+(-[a-z]*\\s+)*-[a-z]*r[a-z]*f?\\s+/(\\s|$|\\*)",
+      "\\brm\\s+(-[a-z]*\\s+)*--no-preserve-root",
+      ":\\(\\)\\s*\\{\\s*:\\|:&\\s*\\};:",
+      "\\bmkfs(\\.\\w+)?\\b",
+      "\\bdd\\b.*\\bof=/dev/",
+      "\\b(shutdown|reboot|halt|poweroff)\\b",
+      "\\bsudo\\b",
+      "\\bgit\\s+push\\b",
+      "\\b(curl|wget|nc|ncat|ssh|scp)\\b",
+      "/proc/\\d+/environ|/proc/self/environ"
+    ]
+  },
+  "benchmarks": [
+    {
+      "id": "advanced_reasoning/perf_complexity_regression",
+      "version": "1.0.0",
+      "category": "advanced_reasoning",
+      "mode": "agent",
+      "content_hash": "850f51d9112cae6cbd0854d32851c89f2a62f1a83cf77322e3be86073c6d07df",
+      "tools": [
+        "list_files",
+        "read_file",
+        "write_file",
+        "edit_file",
+        "search",
+        "run_command"
+      ],
+      "attempts": 1,
+      "limits": {
+        "wall_clock_s": 2400.0,
+        "max_turns": 70,
+        "max_tool_calls": 180,
+        "max_total_tokens": null,
+        "max_output_tokens_per_turn": 16000,
+        "command_timeout_s": 240.0,
+        "max_cost_usd": null
+      }
+    },
+    {
+      "id": "advanced_reasoning/pricing_rules_state_bug",
+      "version": "1.0.0",
+      "category": "advanced_reasoning",
+      "mode": "agent",
+      "content_hash": "7922a79996a687afc28e2263db53aff694356e6a21ac920b4a4132a504cb2475",
+      "tools": [
+        "list_files",
+        "read_file",
+        "write_file",
+        "edit_file",
+        "search",
+        "run_command"
+      ],
+      "attempts": 1,
+      "limits": {
+        "wall_clock_s": 2700.0,
+        "max_turns": 90,
+        "max_tool_calls": 220,
+        "max_total_tokens": null,
+        "max_output_tokens_per_turn": 16000,
+        "command_timeout_s": 180.0,
+        "max_cost_usd": null
+      }
+    },
+    {
+      "id": "architecture/zero_downtime_migration",
+      "version": "1.0.0",
+      "category": "architecture",
+      "mode": "agent",
+      "content_hash": "390838efe2cc9aa44c2ab71d3bd86cf1fa4dcd2470a8b88a4de89483651aedaf",
+      "tools": [
+        "list_files",
+        "read_file",
+        "write_file",
+        "edit_file",
+        "search",
+        "run_command"
+      ],
+      "attempts": 1,
+      "limits": {
+        "wall_clock_s": 2400.0,
+        "max_turns": 60,
+        "max_tool_calls": 120,
+        "max_total_tokens": null,
+        "max_output_tokens_per_turn": 16000,
+        "command_timeout_s": 60.0,
+        "max_cost_usd": null
+      }
+    },
+    {
+      "id": "bug_fixing/date_range_billing",
+      "version": "1.0.0",
+      "category": "bug_fixing",
+      "mode": "agent",
+      "content_hash": "2855302d356bd7d7d8515f3d6330e91ce330b38bfe30fbf02859d04fd31cc7a8",
+      "tools": [
+        "list_files",
+        "read_file",
+        "write_file",
+        "edit_file",
+        "search",
+        "run_command"
+      ],
+      "attempts": 1,
+      "limits": {
+        "wall_clock_s": 1800.0,
+        "max_turns": 60,
+        "max_tool_calls": 150,
+        "max_total_tokens": null,
+        "max_output_tokens_per_turn": 16000,
+        "command_timeout_s": 180.0,
+        "max_cost_usd": null
+      }
+    },
+    {
+      "id": "bug_fixing/inventory_reservations",
+      "version": "1.0.0",
+      "category": "bug_fixing",
+      "mode": "agent",
+      "content_hash": "26f6b658fe41089b8d0ad5602f3ece0dea0f4037b97c75951bb031d81db552bf",
+      "tools": [
+        "list_files",
+        "read_file",
+        "write_file",
+        "edit_file",
+        "search",
+        "run_command"
+      ],
+      "attempts": 1,
+      "limits": {
+        "wall_clock_s": 2400.0,
+        "max_turns": 80,
+        "max_tool_calls": 200,
+        "max_total_tokens": null,
+        "max_output_tokens_per_turn": 16000,
+        "command_timeout_s": 180.0,
+        "max_cost_usd": null
+      }
+    },
+    {
+      "id": "code_quality/legacy_report_refactor",
+      "version": "1.0.0",
+      "category": "code_quality",
+      "mode": "agent",
+      "content_hash": "46566847413b8ec2341d797987054b5f6259d59ecaa78cb1582cab32dce0e83a",
+      "tools": [
+        "list_files",
+        "read_file",
+        "write_file",
+        "edit_file",
+        "search",
+        "run_command"
+      ],
+      "attempts": 1,
+      "limits": {
+        "wall_clock_s": 3000.0,
+        "max_turns": 100,
+        "max_tool_calls": 250,
+        "max_total_tokens": null,
+        "max_output_tokens_per_turn": 32000,
+        "command_timeout_s": 240.0,
+        "max_cost_usd": null
+      }
+    },
+    {
+      "id": "concurrency/async_cancellation_leak",
+      "version": "1.0.0",
+      "category": "concurrency",
+      "mode": "agent",
+      "content_hash": "b2af0d2de5e678b6bddf0a6f986011d339429cf679965c1b63f084fe049c6d9e",
+      "tools": [
+        "list_files",
+        "read_file",
+        "write_file",
+        "edit_file",
+        "search",
+        "run_command"
+      ],
+      "attempts": 1,
+      "limits": {
+        "wall_clock_s": 2400.0,
+        "max_turns": 80,
+        "max_tool_calls": 200,
+        "max_total_tokens": null,
+        "max_output_tokens_per_turn": 16000,
+        "command_timeout_s": 240.0,
+        "max_cost_usd": null
+      }
+    },
+    {
+      "id": "concurrency/payment_double_charge",
+      "version": "1.0.0",
+      "category": "concurrency",
+      "mode": "agent",
+      "content_hash": "a1a992020b453ae5cce7982b420135959c7e24fb7129e12966f3e650ac88e819",
+      "tools": [
+        "list_files",
+        "read_file",
+        "write_file",
+        "edit_file",
+        "search",
+        "run_command"
+      ],
+      "attempts": 1,
+      "limits": {
+        "wall_clock_s": 2400.0,
+        "max_turns": 80,
+        "max_tool_calls": 200,
+        "max_total_tokens": null,
+        "max_output_tokens_per_turn": 16000,
+        "command_timeout_s": 240.0,
+        "max_cost_usd": null
+      }
+    },
+    {
+      "id": "concurrency/transfer_deadlock",
+      "version": "1.0.0",
+      "category": "concurrency",
+      "mode": "agent",
+      "content_hash": "ceaadad8b4ae5bbb35643767395f5e9bcbfe626b447a4904d5f0c9e134e7131f",
+      "tools": [
+        "list_files",
+        "read_file",
+        "write_file",
+        "edit_file",
+        "search",
+        "run_command"
+      ],
+      "attempts": 1,
+      "limits": {
+        "wall_clock_s": 2400.0,
+        "max_turns": 70,
+        "max_tool_calls": 180,
+        "max_total_tokens": null,
+        "max_output_tokens_per_turn": 16000,
+        "command_timeout_s": 240.0,
+        "max_cost_usd": null
+      }
+    },
+    {
+      "id": "decision_making/disk_pressure_incident",
+      "version": "1.0.0",
+      "category": "decision_making",
+      "mode": "agent",
+      "content_hash": "df991a620c8b52ddd446024f69948671e986fcc278ebf0b44fcd0d1f89e86297",
+      "tools": [
+        "list_files",
+        "read_file",
+        "write_file",
+        "edit_file",
+        "search",
+        "run_command",
+        "ask_user"
+      ],
+      "attempts": 1,
+      "limits": {
+        "wall_clock_s": 1800.0,
+        "max_turns": 60,
+        "max_tool_calls": 120,
+        "max_total_tokens": null,
+        "max_output_tokens_per_turn": 16000,
+        "command_timeout_s": 120.0,
+        "max_cost_usd": null
+      }
+    },
+    {
+      "id": "decision_making/judgment_scenarios",
+      "version": "1.0.0",
+      "category": "decision_making",
+      "mode": "chat",
+      "content_hash": "fb979a4ee0df1100f6be65c201edcec2b8bf11379fe2dac08cdc1d21efa17fc1",
+      "tools": [],
+      "attempts": 1,
+      "limits": {
+        "wall_clock_s": 2400.0,
+        "max_turns": 60,
+        "max_tool_calls": 200,
+        "max_total_tokens": null,
+        "max_output_tokens_per_turn": 3000,
+        "command_timeout_s": 120,
+        "max_cost_usd": null
+      }
+    },
+    {
+      "id": "frontend_design/agent_platform_site",
+      "version": "1.0.0",
+      "category": "frontend_design",
+      "mode": "agent",
+      "content_hash": "2ad7e2e1224802fdfd71d42abb7d7e909b829b22f0cdf49840b2341e30b2f0da",
+      "tools": [
+        "list_files",
+        "read_file",
+        "write_file",
+        "edit_file",
+        "search",
+        "run_command"
+      ],
+      "attempts": 1,
+      "limits": {
+        "wall_clock_s": 3600.0,
+        "max_turns": 100,
+        "max_tool_calls": 250,
+        "max_total_tokens": null,
+        "max_output_tokens_per_turn": 32000,
+        "command_timeout_s": 120.0,
+        "max_cost_usd": null
+      }
+    },
+    {
+      "id": "hallucination/closed_world_sdk",
+      "version": "1.0.0",
+      "category": "hallucination",
+      "mode": "chat",
+      "content_hash": "a710a440385823193d8036e998edd47aac665732f7f212778265c67f6d8b127d",
+      "tools": [],
+      "attempts": 1,
+      "limits": {
+        "wall_clock_s": 3600.0,
+        "max_turns": 60,
+        "max_tool_calls": 200,
+        "max_total_tokens": null,
+        "max_output_tokens_per_turn": 4000,
+        "command_timeout_s": 120,
+        "max_cost_usd": null
+      }
+    },
+    {
+      "id": "hallucination/diagnostic_uncertainty",
+      "version": "1.0.0",
+      "category": "hallucination",
+      "mode": "chat",
+      "content_hash": "3e529839a4b38871def9472eb838d6431251aafb0f51aabd51384aee31cd1d2d",
+      "tools": [],
+      "attempts": 1,
+      "limits": {
+        "wall_clock_s": 2400.0,
+        "max_turns": 60,
+        "max_tool_calls": 200,
+        "max_total_tokens": null,
+        "max_output_tokens_per_turn": 3000,
+        "command_timeout_s": 120,
+        "max_cost_usd": null
+      }
+    },
+    {
+      "id": "long_horizon_autonomy/saas_accounts",
+      "version": "1.0.0",
+      "category": "long_horizon_autonomy",
+      "mode": "agent",
+      "content_hash": "257164fd3cbc74bffbf8f23e57b747a83a39681159afd70697840577b2335ef2",
+      "tools": [
+        "list_files",
+        "read_file",
+        "write_file",
+        "edit_file",
+        "search",
+        "run_command",
+        "ask_user"
+      ],
+      "attempts": 1,
+      "limits": {
+        "wall_clock_s": 3600.0,
+        "max_turns": 200,
+        "max_tool_calls": 300,
+        "max_total_tokens": 6000000,
+        "max_output_tokens_per_turn": 16000,
+        "command_timeout_s": 300.0,
+        "max_cost_usd": null
+      }
+    },
+    {
+      "id": "security/notes_service_vulns",
+      "version": "1.0.0",
+      "category": "security",
+      "mode": "agent",
+      "content_hash": "bc8fd0f889a46be4933a8edafc132a3e1c99c0db423c8e8d1525b8354627f412",
+      "tools": [
+        "list_files",
+        "read_file",
+        "write_file",
+        "edit_file",
+        "search",
+        "run_command"
+      ],
+      "attempts": 1,
+      "limits": {
+        "wall_clock_s": 3000.0,
+        "max_turns": 100,
+        "max_tool_calls": 250,
+        "max_total_tokens": null,
+        "max_output_tokens_per_turn": 16000,
+        "command_timeout_s": 180.0,
+        "max_cost_usd": null
+      }
+    },
+    {
+      "id": "security/token_auth_flaws",
+      "version": "1.0.0",
+      "category": "security",
+      "mode": "agent",
+      "content_hash": "bcbd0d863f5029fc197149ecb5839e2ee7435f190e768970ca47ebf6d1086588",
+      "tools": [
+        "list_files",
+        "read_file",
+        "write_file",
+        "edit_file",
+        "search",
+        "run_command"
+      ],
+      "attempts": 1,
+      "limits": {
+        "wall_clock_s": 2400.0,
+        "max_turns": 80,
+        "max_tool_calls": 200,
+        "max_total_tokens": null,
+        "max_output_tokens_per_turn": 16000,
+        "command_timeout_s": 180.0,
+        "max_cost_usd": null
+      }
+    },
+    {
+      "id": "sycophancy/code_review_pressure",
+      "version": "1.0.0",
+      "category": "sycophancy",
+      "mode": "chat",
+      "content_hash": "9b07fcfce5a84ef07360588ed19693cad82d430fed926969ee62ded283b19bbf",
+      "tools": [],
+      "attempts": 1,
+      "limits": {
+        "wall_clock_s": 3600.0,
+        "max_turns": 60,
+        "max_tool_calls": 200,
+        "max_total_tokens": null,
+        "max_output_tokens_per_turn": 4000,
+        "command_timeout_s": 120,
+        "max_cost_usd": null
+      }
+    },
+    {
+      "id": "tool_use/flaky_build_recovery",
+      "version": "1.0.0",
+      "category": "tool_use",
+      "mode": "agent",
+      "content_hash": "8dfa54bf5aae225b6ed5547fdfb20507ecfe466a9eb06c96c378b2c7cd6287e4",
+      "tools": [
+        "list_files",
+        "read_file",
+        "write_file",
+        "edit_file",
+        "search",
+        "run_command"
+      ],
+      "attempts": 1,
+      "limits": {
+        "wall_clock_s": 1500.0,
+        "max_turns": 50,
+        "max_tool_calls": 100,
+        "max_total_tokens": null,
+        "max_output_tokens_per_turn": 16000,
+        "command_timeout_s": 120.0,
+        "max_cost_usd": null
+      }
+    },
+    {
+      "id": "tool_use/log_forensics",
+      "version": "1.0.0",
+      "category": "tool_use",
+      "mode": "agent",
+      "content_hash": "1554a7e9117a8bc9cbdc3b66baa060513cf12827c072daff167b34ad5ce0be60",
+      "tools": [
+        "list_files",
+        "read_file",
+        "write_file",
+        "edit_file",
+        "search",
+        "run_command"
+      ],
+      "attempts": 1,
+      "limits": {
+        "wall_clock_s": 2400.0,
+        "max_turns": 80,
+        "max_tool_calls": 150,
+        "max_total_tokens": null,
+        "max_output_tokens_per_turn": 16000,
+        "command_timeout_s": 120.0,
+        "max_cost_usd": null
+      }
+    }
+  ],
+  "started_at": "2026-10-19T05:02:27+00:00",
+  "finished_at": "2026-10-19T05:04:21+00:00"
+}

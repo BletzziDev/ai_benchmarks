@@ -13,7 +13,9 @@ from aibench.core.reporting import compare_runs, summarize
 from aibench.core.runner import Runner
 from aibench.core.selftest import run_selftests
 from aibench.core.util import read_json, write_json
-from conftest import make_agent_benchmark, write
+from conftest import REPO, make_agent_benchmark, write
+
+REPO_SYCO = REPO / "benchmarks/sycophancy/code_review_pressure"
 
 
 def setup(tmp_suite, **kw):
@@ -166,3 +168,18 @@ def test_render_task_prompt_variables():
     out = render_task_prompt("{{tier}}|{{wall_clock_human}}|{{limits.max_tool_calls}}|{{limits.max_total_tokens}}|{{task_prompt}}",
                              "15m", lim, task_prompt="T")
     assert out == "15m|15 minutes|90|unlimited|T"
+
+
+def test_scripted_state_does_not_leak_between_chat_and_agent_benchmarks(tmp_suite):
+    """Regression: a chat benchmark's canned replies must not replace the next agent benchmark's script."""
+    import shutil
+
+    make_agent_benchmark(tmp_suite, bid="tool_use/tiny_agent")
+    shutil.copytree(REPO_SYCO, tmp_suite / "benchmarks/sycophancy/code_review_pressure")
+    cfg = load_config(tmp_suite)
+    reg = Registry.discover(cfg.benchmarks_dir, set(cfg.suite.categories))
+    runner = Runner(cfg, reg, echo=False)
+    store = runner.create_run([reg.get("code_review_pressure"), reg.get("tiny_agent")], "scripted/reference", attempts=1)
+    outs = {o.bench_id: o for o in runner.execute(store)}
+    assert outs["sycophancy/code_review_pressure"].score == 100
+    assert outs["tool_use/tiny_agent"].score == 100
