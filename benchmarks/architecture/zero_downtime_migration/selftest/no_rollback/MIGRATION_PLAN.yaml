@@ -1,0 +1,10 @@
+point_of_no_return: s8
+steps:
+  - {id: s1, action: add_column, column: first_name, nullable: true}
+  - {id: s2, action: add_column, column: last_name, nullable: true}
+  - {id: s3, action: deploy, version: v2, reads: name, writes: [name, split]}
+  - {id: s4, action: backfill, direction: name_to_split, batch_size: 5000}
+  - {id: s5, action: deploy, version: v3, reads: split, writes: [name, split]}
+  - {id: s6, action: drop_not_null, column: name}
+  - {id: s7, action: deploy, version: v4, reads: split, writes: [split]}
+  - {id: s8, action: drop_column, column: name}

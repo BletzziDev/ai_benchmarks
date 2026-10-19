@@ -1,0 +1,44 @@
+# Expand / migrate / contract with dual writes; rollback to v1 stays possible until s10.
+point_of_no_return: s10_drop_sync_trigger
+steps:
+  - id: s1_add_first_name
+    action: add_column
+    column: first_name
+    nullable: true
+  - id: s2_add_last_name
+    action: add_column
+    column: last_name
+    nullable: true
+  - id: s3_deploy_v2_dual_write
+    action: deploy
+    version: v2
+    reads: name
+    writes: [name, split]
+  - id: s4_backfill_split
+    action: backfill
+    direction: name_to_split
+    batch_size: 5000
+  - id: s5_verify_backfill
+    action: verify
+    check: "count rows where first_name IS NULL = 0; sample 10k rows: join(first_name,last_name) == name"
+  - id: s6_drop_not_null_name
+    action: drop_not_null
+    column: name
+  - id: s7_create_sync_trigger
+    action: create_trigger
+    name: users_split_to_name
+    sync: split_to_name
+  - id: s8_deploy_v3_new_columns
+    action: deploy
+    version: v3
+    reads: split
+    writes: [split]
+  - id: s9_verify_v3
+    action: verify
+    check: "error rate, p99 latency and name/split consistency stable for 24h"
+  - id: s10_drop_sync_trigger
+    action: drop_trigger
+    name: users_split_to_name
+  - id: s11_drop_name
+    action: drop_column
+    column: name

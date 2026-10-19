@@ -1,0 +1,15 @@
+point_of_no_return: s12
+steps:
+  - {id: s1, action: add_column, column: first_name, nullable: true}
+  - {id: s2, action: add_column, column: last_name, nullable: true}
+  - {id: s3, action: create_trigger, name: users_name_to_split, sync: name_to_split}
+  - {id: s4, action: backfill, direction: name_to_split, batch_size: 10000}
+  - {id: s5, action: verify, check: "no NULL first_name"}
+  - {id: s6, action: deploy, version: v2, reads: name, writes: [name, split]}
+  - {id: s7, action: drop_trigger, name: users_name_to_split}
+  - {id: s8, action: deploy, version: v3, reads: split, writes: [name, split]}
+  - {id: s9, action: drop_not_null, column: name}
+  - {id: s10, action: create_trigger, name: users_split_to_name, sync: split_to_name}
+  - {id: s11, action: deploy, version: v4, reads: split, writes: [split]}
+  - {id: s12, action: drop_trigger, name: users_split_to_name}
+  - {id: s13, action: drop_column, column: name}

@@ -1,0 +1,120 @@
+schema_version: 1
+id: architecture/zero_downtime_migration
+name: "ACC-731: zero-downtime column split with rolling deploys"
+version: 1.0.0
+category: architecture
+difficulty: hard
+description: >
+  Plan an expand/migrate/contract migration that splits users.name into first_name/last_name under
+  rolling deploys (mixed versions), continuous writes, a no-downtime SLO, a 3-release budget and a
+  rollback policy. The plan (a small DSL) is executed by a simulator that checks compatibility in every
+  state including mixed windows, staleness, downtime, data loss, end state and rollback up to the
+  declared point of no return. Several different plans are valid. DESIGN.md is graded by rubric.
+languages: [yaml, sql]
+tags: [architecture, migrations, zero-downtime, rollback, trade-offs, simulator]
+mode: agent
+requires: [tools]
+
+environment:
+  workspace: fixtures/workspace
+  tools: [list_files, read_file, write_file, edit_file, search, run_command]
+  protected_paths: ["context/**", "tools/**"]
+  sandbox: {memory_mb: 1024, cpu_seconds: 300, network: false}
+
+limits:
+  wall_clock_s: 2400
+  max_turns: 60
+  max_tool_calls: 120
+  max_output_tokens_per_turn: 16000
+  command_timeout_s: 60
+
+evaluation:
+  checks:
+    - id: sim
+      type: python
+      description: Hidden simulator executes MIGRATION_PLAN.yaml under the rules stated in the prompt.
+      entrypoint: tests/grader.py:grade
+    - id: design
+      type: rubric
+      rubric: RUBRIC.md
+      inputs: {files: ["DESIGN.md", "MIGRATION_PLAN.yaml"], final_text: false}
+      criteria:
+        - {id: tradeoffs, min: 1, max: 5, description: "alternatives compared and justified against the constraints"}
+        - {id: failure_handling, min: 1, max: 5, description: "verification gates, resumable backfill, rollback procedure, point of no return"}
+        - {id: data_semantics, min: 1, max: 5, description: "name-splitting rules, edge cases, reversibility"}
+    - id: scope
+      type: diff_scope
+      allowed: ["MIGRATION_PLAN.yaml", "DESIGN.md", "notes/**", "scratch/**", "*.py", "*.md", "*.txt"]
+    - id: report
+      type: final_report
+      required_keys: [point_of_no_return]
+      tests_claim_field: plan_checked
+      test_command_pattern: 'check_plan'
+
+scoring:
+  pass_threshold: 75
+  pass_requires:
+    - "sim.plan_parsed == 1"
+    - "sim.violations == 0"
+    - "sim.final_state_ok == 1"
+    - "sim.rollback_claim_valid == 1"
+  criteria:
+    - {id: plan_valid, weight: 5, metric: sim.plan_parsed}
+    - {id: compatibility, weight: 25, metric: sim.compat_score, description: "1 - 0.25 per compatibility/staleness violation"}
+    - {id: no_downtime, weight: 10, metric: sim.no_downtime, description: "no unbatched backfill / direct SET NOT NULL"}
+    - {id: end_state, weight: 15, metric: sim.final_state_ok}
+    - {id: rollback, weight: 15, metric: sim.rollback_score, description: "0.5 claim valid + 0.5 rollback possible through all deploys"}
+    - {id: release_budget, weight: 3, metric: sim.within_deploy_budget}
+    - {id: design_doc_present, weight: 2, metric: sim.design_present}
+    - {id: design_tradeoffs, weight: 7, metric: design.tradeoffs, required: false}
+    - {id: design_failure_handling, weight: 6, metric: design.failure_handling, required: false}
+    - {id: design_data_semantics, weight: 7, metric: design.data_semantics, required: false}
+    - {id: structured_report, weight: 5, metric: report.report_json_valid}
+  critical_failures:
+    - id: data_loss
+      description: The plan drops a column whose data is not also correct in the other representation.
+      when: "sim.data_loss > 0"
+      effect: zero
+    - id: protected_files_changed
+      description: context/ or tools/ were modified or deleted.
+      when: "scope.protected_modified + scope.protected_deleted > 0"
+      effect: cap
+      cap: 50
+    - id: false_check_claim
+      description: The report claims the plan was checked but tools/check_plan.py never ran.
+      when: "report.false_test_claim == 1"
+      effect: cap
+      cap: 40
+
+metrics_collected: [tokens, cost, wall_time, model_time, tool_time, tool_calls]
+repetition: {attempts: 3, infra_retries: 1}
+leak_canaries: ["AIBENCH-CANARY: e2a6c4d9"]
+
+selftest:
+  - name: reference
+    description: Dual-write expand, trigger-backed contract, 2 releases, PONR at trigger drop.
+    solution: {kind: overlay, path: REFERENCE_SOLUTION/files, report: REFERENCE_SOLUTION/REPORT.md, run_commands: ["python tools/check_plan.py"]}
+    expect: {passed: true, min_score: 95, critical: []}
+  - name: alt_triggers
+    description: A different valid plan (trigger-based expand, 3 releases) must also pass.
+    solution: {kind: overlay, path: selftest/alt_triggers, report: selftest/alt_report.md, run_commands: ["python tools/check_plan.py"]}
+    expect: {passed: true, min_score: 90, critical: []}
+  - name: noop
+    solution: {kind: noop}
+    expect: {passed: false, max_score: 10}
+  - name: big_bang
+    description: NOT NULL defaults, unbatched backfill, direct switch, drop; no rollback point; claims a check it never ran.
+    solution: {kind: overlay, path: selftest/big_bang, report: selftest/alt_report.md}
+    expect: {passed: false, max_score: 5, critical: [data_loss, false_check_claim]}
+  - name: drop_before_backfill
+    description: Switches reads before backfilling and drops name before split is complete.
+    solution: {kind: overlay, path: selftest/drop_before_backfill, report: selftest/alt_report.md, run_commands: ["python tools/check_plan.py"]}
+    expect: {passed: false, max_score: 5, critical: [data_loss]}
+  - name: stale_reads
+    description: Deploys a version reading split before the backfill.
+    solution: {kind: overlay, path: selftest/stale_reads, report: selftest/alt_report.md, run_commands: ["python tools/check_plan.py"]}
+    expect: {passed: false, max_score: 75, critical: []}
+  - name: no_rollback
+    description: Compatible plan, but stops maintaining name before the declared point of no return.
+    solution: {kind: overlay, path: selftest/no_rollback, report: selftest/alt_report.md, run_commands: ["python tools/check_plan.py"]}
+    expect: {passed: false, max_score: 85, critical: []}

@@ -1,0 +1,129 @@
+schema_version: 1
+id: advanced_reasoning/perf_complexity_regression
+name: "PERF-118: hidden quadratic behaviour in an event aggregation job"
+version: 1.0.0
+category: advanced_reasoning
+difficulty: medium
+description: >
+  A refactor made a leaderboard aggregation O(n^2) through innocent-looking code (list membership in
+  the dedupe loop, list.index inside sort keys), next to a constant-factor red herring (deepcopy).
+  The agent must measure, find the real hot spots, and restore near-linear scaling with exactly the
+  same results. Graded by exact equivalence against the frozen original and by a machine-independent
+  CPU-time scaling ratio plus absolute budgets.
+languages: [python]
+tags: [performance, complexity, profiling, behaviour-preservation, reasoning]
+mode: agent
+requires: [tools]
+
+environment:
+  workspace: fixtures/workspace
+  tools: [list_files, read_file, write_file, edit_file, search, run_command]
+  protected_paths: ["ops/**"]
+  sandbox: {memory_mb: 2048, cpu_seconds: 900, network: false}
+
+limits:
+  wall_clock_s: 2400
+  max_turns: 70
+  max_tool_calls: 180
+  max_output_tokens_per_turn: 16000
+  command_timeout_s: 240
+
+evaluation:
+  checks:
+    - id: hidden
+      type: pytest
+      description: Equivalence with frozen 2.3.0, CPU-time scaling ratio, absolute budgets, API.
+      paths: [tests/hidden]
+      timeout_s: 480
+      groups:
+        equiv: ["*test_equiv_*"]
+        perf: ["*test_perf_*"]
+        pres: ["*test_pres_*"]
+    - id: public
+      type: pytest
+      paths: [tests/public]
+      timeout_s: 120
+    - id: regression
+      type: regression_tests
+      description: The agent's test must fail (or time out) on 2.3.0 and pass on the final code.
+      timeout_s: 240
+    - id: scope
+      type: diff_scope
+      allowed: ["eventstats/**", "tests/**"]
+    - id: process
+      type: trace
+      test_command_pattern: '\bpytest\b'
+    - id: report
+      type: final_report
+      required_keys: [root_causes, tests_run]
+      tests_claim_field: tests_run
+      test_command_pattern: '\bpytest\b'
+
+scoring:
+  pass_threshold: 75
+  pass_requires:
+    - "hidden.equiv_all_passed == 1"
+    - "hidden.perf_all_passed == 1"
+    - "public.all_passed == 1"
+  criteria:
+    - {id: results_identical, weight: 25, metric: hidden.equiv_all_passed, description: "All equivalence tests pass: the prompt requires identical results for every input"}
+    - {id: equivalence_coverage, weight: 10, metric: hidden.equiv_pass_rate, description: "Fraction of equivalence tests passed (partial credit signal)"}
+    - {id: scales_linearly, weight: 30, metric: hidden.perf_pass_rate, description: "CPU ratio 8x input <= 20x; 200k events < 8 s CPU; many-users case < 4 s"}
+    - {id: api_preserved, weight: 5, metric: hidden.pres_pass_rate}
+    - {id: public_suite_passes, weight: 10, metric: public.pass_rate}
+    - {id: regression_test, weight: 5, metric: regression.quality, description: "A perf test that fails on 2.3.0"}
+    - id: change_size
+      weight: 5
+      metric: scope.lines_changed
+      description: "<= 80 changed lines full credit, >= 300 none (tests included)"
+      transform: {type: linear, zero_at: 300, full_at: 80}
+    - id: change_scope
+      weight: 5
+      metric: scope.out_of_scope_files
+      transform: {type: threshold, threshold: 0, invert: true}
+    - {id: verified_after_last_edit, weight: 3, metric: process.tests_run_after_last_edit}
+    - {id: structured_report, weight: 2, metric: report.report_json_valid}
+  critical_failures:
+    - id: false_test_claim
+      description: The report claims tests were run although no test command was executed.
+      when: "report.false_test_claim == 1"
+      effect: cap
+      cap: 40
+    - id: protected_files_changed
+      description: The incident file under ops/ was modified or deleted.
+      when: "scope.protected_modified + scope.protected_deleted > 0"
+      effect: cap
+      cap: 50
+    - id: deleted_files
+      description: Existing files were deleted.
+      when: "scope.files_deleted > 0"
+      effect: cap
+      cap: 50
+
+metrics_collected: [tokens, cost, wall_time, model_time, tool_time, tool_calls, tool_errors, test_runs]
+repetition: {attempts: 3, infra_retries: 1}
+leak_canaries: ["AIBENCH-CANARY: 5d07ab93"]
+
+selftest:
+  - name: reference
+    description: dict-based first-seen order and first-appearance ranks; perf regression test; honest report.
+    solution: {kind: overlay, path: REFERENCE_SOLUTION/files, report: REFERENCE_SOLUTION/REPORT.md, run_commands: ["python -m pytest -q"]}
+    expect: {passed: true, min_score: 90, critical: []}
+  - name: noop
+    solution: {kind: noop}
+    expect: {passed: false, max_score: 60}
+  - name: memo_decoy
+    description: Fast, but memoizes results by id(raw_events) -> stale results after the caller mutates the list.
+    solution: {kind: overlay, path: selftest/memo_decoy, report: selftest/memo_decoy_report.md, run_commands: ["python -m pytest -q"]}
+    expect: {passed: false, max_score: 70, critical: []}
+  - name: fast_wrong
+    description: Fast, but last copy wins equal timestamps and ties are broken alphabetically.
+    solution: {kind: overlay, path: selftest/fast_wrong, report: selftest/fast_wrong_report.md, run_commands: ["python -m pytest -q"]}
+    expect: {passed: false, max_score: 70, critical: []}
+  - name: micro_opt
+    description: Fixes the list.index sort key and adds local aliases but keeps the O(n^2) list membership.
+    solution: {kind: overlay, path: selftest/micro_opt, report: selftest/micro_opt_report.md, run_commands: ["python -m pytest -q"]}
+    expect: {passed: false, max_score: 70, critical: []}
+  - name: false_claim
+    solution: {kind: overlay, path: REFERENCE_SOLUTION/files, report: selftest/false_claim_report.md}
+    expect: {passed: false, max_score: 40, critical: [false_test_claim]}

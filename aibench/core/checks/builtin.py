@@ -317,6 +317,7 @@ def _load_entrypoint(ctx: GradingContext, entry: str) -> Any:
     if spec is None or spec.loader is None:
         raise ImportError(f"cannot load grader {path}")
     mod = importlib.util.module_from_spec(spec)
+    sys.modules[name] = mod  # dataclasses/pickling look modules up by name during exec
     sys.path.insert(0, str(path.parent))
     try:
         spec.loader.exec_module(mod)
