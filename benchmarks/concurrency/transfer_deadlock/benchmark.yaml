@@ -1,0 +1,128 @@
+schema_version: 1
+id: concurrency/transfer_deadlock
+name: "TRSY-88: lock-order deadlocks, leaked locks on timeout and self-transfer hangs"
+version: 1.0.0
+category: concurrency
+difficulty: medium
+description: >
+  Per-account locks acquired in argument order deadlock on opposite transfers; total() uses yet
+  another order; a TransferTimeout leaks the first lock and freezes the account; self-transfers
+  re-acquire a non-reentrant lock. The fix must remain parallel for disjoint accounts and must not
+  drop transfers.
+languages: [python]
+tags: [deadlock, lock-ordering, timeouts, liveness, threading, invariants]
+mode: agent
+requires: [tools]
+
+environment:
+  workspace: fixtures/workspace
+  tools: [list_files, read_file, write_file, edit_file, search, run_command]
+  protected_paths: ["docs/**", "bankcore/journal.py"]
+  sandbox: {memory_mb: 3072, cpu_seconds: 900, max_processes: 2048, network: false}
+
+limits:
+  wall_clock_s: 2400
+  max_turns: 70
+  max_tool_calls: 180
+  max_output_tokens_per_turn: 16000
+  command_timeout_s: 240
+
+evaluation:
+  checks:
+    - id: hidden
+      type: pytest
+      description: Deadlock stress (bounded by join deadlines), deterministic contention via a parking journal, conservation, parallelism, contract.
+      paths: [tests/hidden]
+      timeout_s: 500
+      groups:
+        dl: ["*test_dl_*"]
+        to: ["*test_to_*"]
+        cons: ["*test_cons_*"]
+        par: ["*test_par_*"]
+        pres: ["*test_pres_*"]
+    - id: public
+      type: pytest
+      paths: [tests/public]
+      timeout_s: 120
+    - id: regression
+      type: regression_tests
+      timeout_s: 240
+    - id: scope
+      type: diff_scope
+      allowed: ["bankcore/bank.py", "bankcore/__init__.py", "tests/**"]
+    - id: process
+      type: trace
+    - id: report
+      type: final_report
+      required_keys: [root_causes, tests_run]
+      tests_claim_field: tests_run
+
+scoring:
+  pass_threshold: 80
+  pass_requires:
+    - "hidden.dl_all_passed == 1"
+    - "hidden.to_all_passed == 1"
+    - "hidden.cons_all_passed == 1"
+    - "hidden.par_all_passed == 1"
+    - "public.all_passed == 1"
+  criteria:
+    - {id: deadlock_free, weight: 25, metric: hidden.dl_pass_rate, description: "Opposite directions, cycles, total() concurrently, self-transfer"}
+    - {id: timeouts_safe, weight: 15, metric: hidden.to_pass_rate, description: "TransferTimeout honoured, nothing changed, nothing left locked"}
+    - {id: conservation_atomicity, weight: 20, metric: hidden.cons_pass_rate, description: "Balances/journal match successful transfers; consistent snapshots; no dropped transfers"}
+    - {id: parallelism_with_safety, weight: 15, metric: hidden.par_pass_rate}
+    - {id: contract_preserved, weight: 8, metric: hidden.pres_pass_rate}
+    - {id: public_suite_passes, weight: 5, metric: public.pass_rate}
+    - {id: regression_tests, weight: 7, metric: regression.quality}
+    - id: change_scope
+      weight: 3
+      metric: scope.out_of_scope_files
+      transform: {type: threshold, threshold: 0, invert: true}
+    - id: change_size
+      weight: 2
+      metric: scope.lines_changed
+      transform: {type: linear, zero_at: 400, full_at: 130}
+  critical_failures:
+    - id: false_test_claim
+      description: Report claims tests were run although no test command was executed.
+      when: "report.false_test_claim == 1"
+      effect: cap
+      cap: 40
+    - id: protected_modified
+      description: The journal module or the incident docs were modified.
+      when: "scope.protected_modified + scope.protected_deleted > 0"
+      effect: cap
+      cap: 50
+    - id: deleted_files
+      description: Existing files were deleted.
+      when: "scope.files_deleted > 0"
+      effect: cap
+      cap: 50
+
+metrics_collected: [tokens, cost, wall_time, model_time, tool_time, tool_calls, test_runs]
+repetition: {attempts: 3, infra_retries: 1}
+leak_canaries: ["AIBENCH-CANARY: 5a7d2c90"]
+
+selftest:
+  - name: reference
+    description: Global lock order by account id in transfer() and total(), try/finally release, single deadline.
+    solution: {kind: overlay, path: REFERENCE_SOLUTION/files, report: REFERENCE_SOLUTION/REPORT.md, run_commands: ["python -m pytest -q"]}
+    expect: {passed: true, min_score: 90, critical: []}
+  - name: noop
+    solution: {kind: noop}
+    expect: {passed: false, max_score: 45}
+  - name: global_lock
+    description: One bank-wide lock for everything. Deadlock-free and correct, but serialises disjoint transfers.
+    solution: {kind: overlay, path: selftest/global_lock, report: selftest/decoy_report.md, run_commands: ["python -m pytest -q"]}
+    expect: {passed: false, max_score: 95, critical: [], metrics: {"hidden.par_all_passed": [0, 0], "hidden.dl_all_passed": [1, 1]}}
+  - name: trylock_drop
+    description: Never waits for the second lock; silently returns (dropping the transfer) when busy.
+    solution: {kind: overlay, path: selftest/trylock_drop, report: selftest/decoy_report.md, run_commands: ["python -m pytest -q"]}
+    expect: {passed: false, max_score: 70, critical: [], metrics: {"hidden.cons_all_passed": [0, 0]}}
+  - name: ordered_transfer_only
+    description: Orders locks in transfer() and fixes timeouts/self-transfer, but total() keeps insertion order.
+    solution: {kind: overlay, path: selftest/ordered_transfer_only, report: selftest/decoy_report.md, run_commands: ["python -m pytest -q"]}
+    expect: {passed: false, max_score: 95, critical: [], metrics: {"hidden.dl_all_passed": [0, 0]}}
+  - name: false_claim
+    description: Reference code, but no test run while the report claims tests ran.
+    solution: {kind: overlay, path: REFERENCE_SOLUTION/files, report: REFERENCE_SOLUTION/REPORT.md}
+    expect: {passed: false, max_score: 40, critical: [false_test_claim]}

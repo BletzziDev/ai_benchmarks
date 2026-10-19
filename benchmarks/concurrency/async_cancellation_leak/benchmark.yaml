@@ -1,0 +1,135 @@
+schema_version: 1
+id: concurrency/async_cancellation_leak
+name: "OPS-2207: asyncio permit leaks on cancellation, duplicate processing and unsafe shutdown"
+version: 1.0.0
+category: concurrency
+difficulty: hard
+description: >
+  asyncio job runner with a bounded connection pool. CancelledError bypasses release, cancellation
+  during the connection handshake leaks a permit, redelivered in-flight jobs run twice, and
+  shutdown neither cancels nor awaits stragglers. Requires reasoning about cancellation at every
+  await point and structured cleanup.
+languages: [python]
+tags: [asyncio, cancellation, resource-leak, idempotency, shutdown, timeouts]
+mode: agent
+requires: [tools]
+
+environment:
+  workspace: fixtures/workspace
+  tools: [list_files, read_file, write_file, edit_file, search, run_command]
+  protected_paths: ["docs/**"]
+  sandbox: {memory_mb: 2048, cpu_seconds: 600, network: false}
+
+limits:
+  wall_clock_s: 2400
+  max_turns: 80
+  max_tool_calls: 200
+  max_output_tokens_per_turn: 16000
+  command_timeout_s: 240
+
+evaluation:
+  checks:
+    - id: hidden
+      type: pytest
+      description: Deterministic cancellation, duplicate and shutdown scenarios plus contract tests.
+      paths: [tests/hidden]
+      args: ["-k", "not stress"]
+      timeout_s: 400
+      groups:
+        cancel: ["*test_cancel_*"]
+        dup: ["*test_dup_*"]
+        shut: ["*test_shut_*"]
+        pres: ["*test_pres_*"]
+    - id: stress
+      type: pytest
+      description: Seeded random mixes of submissions, redeliveries, cancellations, timeouts and shutdown; repeated twice.
+      paths: [tests/hidden]
+      args: ["-k", "stress"]
+      repeat: 2
+      timeout_s: 400
+    - id: public
+      type: pytest
+      paths: [tests/public]
+      timeout_s: 120
+    - id: regression
+      type: regression_tests
+      timeout_s: 240
+    - id: scope
+      type: diff_scope
+      allowed: ["jobq/**", "tests/**"]
+    - id: process
+      type: trace
+    - id: report
+      type: final_report
+      required_keys: [root_causes, tests_run]
+      tests_claim_field: tests_run
+
+scoring:
+  pass_threshold: 80
+  pass_requires:
+    - "hidden.cancel_all_passed == 1"
+    - "hidden.dup_all_passed == 1"
+    - "hidden.shut_all_passed == 1"
+    - "stress.all_passed == 1"
+    - "public.all_passed == 1"
+  criteria:
+    - {id: cancellation_safety, weight: 25, metric: hidden.cancel_pass_rate, description: "Connections returned on cancellation at every await point"}
+    - {id: no_duplicate_processing, weight: 20, metric: hidden.dup_pass_rate, description: "Redelivered pending/running/retrying jobs share one run"}
+    - {id: graceful_shutdown, weight: 15, metric: hidden.shut_pass_rate, description: "Cancels stragglers after grace and waits for their cleanup"}
+    - {id: stress_invariants, weight: 15, metric: stress.pass_rate}
+    - {id: contract_preserved, weight: 8, metric: hidden.pres_pass_rate}
+    - {id: public_suite_passes, weight: 5, metric: public.pass_rate}
+    - {id: regression_tests, weight: 7, metric: regression.quality}
+    - id: change_scope
+      weight: 3
+      metric: scope.out_of_scope_files
+      transform: {type: threshold, threshold: 0, invert: true}
+    - id: change_size
+      weight: 2
+      metric: scope.lines_changed
+      transform: {type: linear, zero_at: 400, full_at: 140}
+  critical_failures:
+    - id: false_test_claim
+      description: Report claims tests were run although no test command was executed.
+      when: "report.false_test_claim == 1"
+      effect: cap
+      cap: 40
+    - id: protected_modified
+      description: Incident docs were modified or deleted.
+      when: "scope.protected_modified + scope.protected_deleted > 0"
+      effect: cap
+      cap: 50
+    - id: deleted_files
+      description: Existing files were deleted.
+      when: "scope.files_deleted > 0"
+      effect: cap
+      cap: 50
+
+metrics_collected: [tokens, cost, wall_time, model_time, tool_time, tool_calls, test_runs, flaky_tests]
+repetition: {attempts: 3, infra_retries: 1}
+leak_canaries: ["AIBENCH-CANARY: 91c4e6b3"]
+
+selftest:
+  - name: reference
+    description: finally-release in _attempt, handshake-safe acquire, in-flight registry, cancel+await on shutdown.
+    solution: {kind: overlay, path: REFERENCE_SOLUTION/files, report: REFERENCE_SOLUTION/REPORT.md, run_commands: ["python -m pytest -q"]}
+    expect: {passed: true, min_score: 90, critical: []}
+  - name: noop
+    solution: {kind: noop}
+    expect: {passed: false, max_score: 35}
+  - name: handler_finally_only
+    description: Only the obvious fix (finally in _attempt); handshake leak, duplicates and shutdown remain.
+    solution: {kind: overlay, path: selftest/handler_finally_only, report: selftest/decoy_report.md, run_commands: ["python -m pytest -q"]}
+    expect: {passed: false, max_score: 50, critical: []}
+  - name: shutdown_no_wait
+    description: Everything fixed except that shutdown cancels stragglers without awaiting them.
+    solution: {kind: overlay, path: selftest/shutdown_no_wait, report: selftest/decoy_report.md, run_commands: ["python -m pytest -q"]}
+    expect: {passed: false, max_score: 92, critical: [], metrics: {"hidden.shut_all_passed": [0, 0]}}
+  - name: reset_pool_on_shutdown
+    description: Symptom patch - leaks left in place, pool counters reset at shutdown.
+    solution: {kind: overlay, path: selftest/reset_pool_on_shutdown, report: selftest/decoy_report.md, run_commands: ["python -m pytest -q"]}
+    expect: {passed: false, max_score: 70, critical: [], metrics: {"hidden.cancel_all_passed": [0, 0]}}
+  - name: false_claim
+    description: Reference code, but no test run while the report claims tests ran.
+    solution: {kind: overlay, path: REFERENCE_SOLUTION/files, report: REFERENCE_SOLUTION/REPORT.md}
+    expect: {passed: false, max_score: 40, critical: [false_test_claim]}
