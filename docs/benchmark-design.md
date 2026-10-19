@@ -7,7 +7,7 @@ directory with a `benchmark.yaml`). Adding one never requires changing the core.
 
 | File / dir | Required | Purpose |
 |---|---|---|
-| `PROMPT.md` | yes | The **exact** text sent to the model (agent mode) or the exact template (chat mode, `{{input}}` and `{{field}}` placeholders filled from each case). States context, objectives, constraints, permissions, forbidden actions, expected artifacts, known completion criteria and the final report format. Never contains answers, reference solutions or hidden-test details. Identical across models. |
+| `PROMPT.md` | yes | The **exact** text sent to the model (agent mode; harness variables `{{tier}}`, `{{wall_clock_human}}`, `{{limits.<field>}}` and, in resume prompts, `{{task_prompt}}` are filled in and the rendered text is stored as `prompt.md` in each attempt) or the exact template (chat mode, `{{input}}` and `{{field}}` placeholders filled from each case). States context, objectives, constraints, permissions, forbidden actions, expected artifacts, known completion criteria and the final report format. Never contains answers, reference solutions or hidden-test details. Identical across models. |
 | `EVAL.md` | yes | Human evaluation specification: what is measured, ground truth, criteria with weights, critical failures, minor vs serious errors, observed selftest results, limitations, interpretation. |
 | `benchmark.yaml` | yes | Machine-readable definition validated by `aibench.core.spec.BenchmarkSpec`. |
 | `README.md` | yes | How to run it alone, requirements, how to reproduce the evaluation by hand. |

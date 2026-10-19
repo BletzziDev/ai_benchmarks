@@ -1,0 +1,6 @@
+2025-03-03T08:12:44Z INFO  billing change-plan org=3 team->business on=2025-02-05 period=2025-01-15..2025-02-15 proration=48.38
+2025-03-03T08:12:44Z WARN  finance-recon org=3 expected proration 48.39 (15000 cents * 10 days / 31 days = 4838.71 cents)
+2025-03-03T09:40:02Z INFO  invoice INV-2025-00007 org=3 subtotal=49.00 tax_bp=2050 tax=10.04
+2025-03-03T09:40:02Z WARN  finance-recon INV-2025-00007 tax should be 10.05 (1004.5 cents rounds half up)
+2025-03-04T00:00:01Z INFO  renew org=1 anchor=2025-01-31 new_period=2025-03-03..2025-03-31
+2025-03-04T00:00:01Z WARN  customer-success org=1 "our February period should have ended on Feb 28, why March 3rd?"

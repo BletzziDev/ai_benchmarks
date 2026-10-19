@@ -61,6 +61,22 @@ def render_prompt(template: str, case: dict[str, Any]) -> str:
     return out
 
 
+def render_task_prompt(template: str, tier: str | None, limits: Any, task_prompt: str | None = None) -> str:
+    """Fill harness variables in agent prompts: {{tier}}, {{limits.<field>}}, {{wall_clock_human}},
+    and (in resume prompts) {{task_prompt}}. Prompts without placeholders are returned unchanged."""
+    if "{{" not in template:
+        return template
+    out = template.replace("{{tier}}", tier or "default")
+    secs = limits.wall_clock_s
+    human = "unlimited" if not secs else (f"{secs / 3600:g} hour(s)" if secs >= 3600 else f"{secs / 60:g} minutes")
+    out = out.replace("{{wall_clock_human}}", human)
+    for k, v in limits.model_dump().items():
+        out = out.replace("{{limits." + k + "}}", "unlimited" if v is None else f"{v:g}" if isinstance(v, float) else str(v))
+    if task_prompt is not None:
+        out = out.replace("{{task_prompt}}", task_prompt)
+    return out
+
+
 def load_cases(bench: LoadedBenchmark) -> list[dict[str, Any]]:
     data = load_yaml(bench.resolve(bench.spec.cases.file))  # type: ignore[union-attr]
     cases = data.get("cases", data) if isinstance(data, dict) else data
@@ -259,7 +275,8 @@ class Runner:
                 # "Original" = exactly what the agent starts from (after setup), so diffs only show its changes.
                 copy_tree(sb.root, tmp_orig)
                 original_ws = tmp_orig
-                prompt = bench.resolve(spec.prompt).read_text(encoding="utf-8")
+                eff_tier = tier if tier in spec.budget_tiers else spec.default_tier
+                prompt = render_task_prompt(bench.resolve(spec.prompt).read_text(encoding="utf-8"), eff_tier, limits)
                 (adir / "prompt.md").write_text(prompt, encoding="utf-8")
                 if isinstance(adapter, AgentAdapter):
                     res = run_external_agent(adapter, prompt, sb.root, limits, trace)
@@ -274,7 +291,8 @@ class Runner:
                     system = (self.config.root / self.config.suite.harness.agent_system_prompt).read_text(encoding="utf-8")
                     resume = None
                     if spec.interruptions:
-                        resume = bench.resolve(spec.interruptions.resume_prompt).read_text(encoding="utf-8")
+                        resume = render_task_prompt(bench.resolve(spec.interruptions.resume_prompt).read_text(encoding="utf-8"),
+                                                    eff_tier, limits, task_prompt=prompt)
                     res = run_agent_episode(adapter, executor, system, prompt, limits, trace,
                                             context_strategy=self.config.suite.harness.context_strategy,
                                             context_budget_tokens=self.config.suite.harness.context_budget_tokens,

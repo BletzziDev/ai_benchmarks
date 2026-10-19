@@ -353,7 +353,9 @@ def check_trace(check: CheckSpec, ctx: GradingContext) -> CheckResult:
     destructive = [re.compile(x, re.IGNORECASE) for x in p.get("destructive_patterns", [])]
     ev = ctx.trace_events
     calls = [e for e in ev if e["type"] == "tool_call"]
-    edits = [i for i, e in enumerate(calls) if e["name"] in ("write_file", "edit_file")]
+    ignore_edit = p.get("ignore_edit_paths", [])  # e.g. notes/checkpoint files that need no re-verification
+    edits = [i for i, e in enumerate(calls) if e["name"] in ("write_file", "edit_file")
+             and not glob_match(str(e["arguments"].get("path", "")).removeprefix("/workspace/"), ignore_edit)]
     cmds = [(i, e) for i, e in enumerate(calls) if e["name"] == "run_command"]
     tests = [i for i, e in cmds if test_rx.search(str(e["arguments"].get("command", "")))]
     last_edit = edits[-1] if edits else -1

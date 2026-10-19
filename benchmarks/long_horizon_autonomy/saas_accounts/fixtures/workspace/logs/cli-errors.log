@@ -1,0 +1,7 @@
+2025-03-05T14:02:11Z ERROR acctsvc.cli list-invoices --org 2
+Traceback (most recent call last):
+  File "acctsvc/cli.py", line 168, in main
+    return args.fn(conn, args)
+  File "acctsvc/cli.py", line 64, in _cmd_list_invoices
+    width = max(len(r["number"]) for r in rows)
+ValueError: max() iterable argument is empty

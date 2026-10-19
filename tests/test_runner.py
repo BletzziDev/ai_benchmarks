@@ -155,3 +155,14 @@ def test_cli_list_validate_and_doctor(tmp_suite, capsys):
     assert "bug_fixing/tiny" in capsys.readouterr().out
     assert main(["--root", str(tmp_suite), "validate"]) == 0
     assert main(["--root", str(tmp_suite), "doctor"]) == 0
+
+
+def test_render_task_prompt_variables():
+    from aibench.core.runner import render_task_prompt
+    from aibench.core.spec import LimitsSpec
+
+    lim = LimitsSpec(wall_clock_s=900, max_tool_calls=90)
+    assert render_task_prompt("no vars", "15m", lim) == "no vars"
+    out = render_task_prompt("{{tier}}|{{wall_clock_human}}|{{limits.max_tool_calls}}|{{limits.max_total_tokens}}|{{task_prompt}}",
+                             "15m", lim, task_prompt="T")
+    assert out == "15m|15 minutes|90|unlimited|T"
