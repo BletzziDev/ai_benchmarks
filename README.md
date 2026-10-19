@@ -75,7 +75,33 @@ Design decisions (details in `docs/`):
 
 ## Benchmarks
 
-BENCHMARK_TABLE_PLACEHOLDER
+20 benchmarks across all 12 categories (14 agent-mode, 6 chat-mode), 114 selftest cases.
+
+| Category | Benchmark | Mode | Difficulty | What it discriminates |
+|---|---|---|---|---|
+| Frontend & design | `frontend_design/agent_platform_site` | agent | hard | Fixed brand brief (palette, fonts, sections, components); Playwright grader at 375/768/1280/1920 px: components work, no overflow, palette, WCAG contrast, labels, focus, reduced motion, budgets, no external requests; screenshots + optional visual rubric |
+| Advanced reasoning | `advanced_reasoning/pricing_rules_state_bug` | agent | hard | Defects visible only in specific state combinations; one implied only by a documented invariant; oracle-based property tests |
+| | `advanced_reasoning/perf_complexity_regression` | agent | medium | Hidden O(n²) behind innocent code + red herring; exact equivalence with the original + machine-independent complexity ratio |
+| Bug fixing | `bug_fixing/inventory_reservations` | agent | hard | Three interacting root causes (cache key, invalidation on expiry, lapsed holds masked by a clamp); symptom vs cause; discriminating regression tests |
+| | `bug_fixing/date_range_billing` | agent | medium | Single-cause DST proration bug; plausible "ceil" patch breaks fall-back months |
+| Concurrency | `concurrency/payment_double_charge` | agent | hard | Idempotency under concurrent retries, overdrafts, lost updates; global lock held across I/O fails a parallelism test |
+| | `concurrency/transfer_deadlock` | agent | medium | Lock-order deadlocks (incl. a second one surviving the obvious fix), leaked lock on timeout, self-transfer hang |
+| | `concurrency/async_cancellation_leak` | agent | hard | asyncio permit leaks on cancellation, duplicate processing on redelivery, unsafe shutdown |
+| Architecture | `architecture/zero_downtime_migration` | agent | hard | Migration plan in a DSL executed by a simulator over mixed-version deploy windows; data loss, stale reads, rollback points; multiple valid plans accepted; optional design rubric |
+| Code quality | `code_quality/legacy_report_refactor` | agent | medium | Behaviour-preserving refactor; complexity/duplication/nesting metrics vs the original; over-engineering penalised |
+| Security | `security/notes_service_vulns` | agent | hard | SQLi, broken tenant isolation, stored XSS, path traversal, hard-coded/logged secret — exploit variants defeat blacklists |
+| | `security/token_auth_flaws` | agent | hard | `alg: none`, missing expiry, non-constant-time compare, pickle before MAC, unsalted SHA-1 with backward-compatible rehash |
+| Hallucination | `hallucination/closed_world_sdk` | chat | hard | Fictional SDK docs in the prompt; non-existent/removed APIs, version questions, unspecified behaviour; invented identifiers in code (AST); confident-hallucination rate |
+| | `hallucination/diagnostic_uncertainty` | chat | medium | Diagnose or abstain from logs with line ids; fabricated evidence citations are critical |
+| Sycophancy | `sycophancy/code_review_pressure` | chat | medium | Paired design: pressure vs bogus evidence vs valid evidence; false vs true premises; insecure insistence; harmful reversals and correct updates scored separately |
+| Decision making | `decision_making/disk_pressure_incident` | agent | medium | Disk at 97% with WAL data, sessions, retention rules and an irreversible migration; authorization via simulated owner; timid and reckless both fail |
+| | `decision_making/judgment_scenarios` | chat | medium | 14 decisions with per-option scores and rationales; reversibility / authorization judgments; harmful-choice gate |
+| Tool use | `tool_use/flaky_build_recovery` | agent | medium | Injected transient failure + silently truncated file read; stale generated code must be regenerated, not hand-patched |
+| | `tool_use/log_forensics` | agent | hard | 2.2 MB of logs, clock-offset trap, cross-file correlation, one unanswerable question; efficiency from the trace |
+| Long-horizon autonomy | `long_horizon_autonomy/saas_accounts` | agent | expert | 12-ticket backlog with 15m/1h/4h/12h budgets, mid-run context wipe and resume from `PROGRESS.md`, destructive-migration authorization, blocked ticket, prompt injection, fake secret, honesty of completion claims |
+
+Each benchmark's `EVAL.md` lists its criteria and weights, critical failures, the observed selftest
+scores and its limitations; `benchmark show <id>` prints the full configuration.
 
 ## What a report contains
 
