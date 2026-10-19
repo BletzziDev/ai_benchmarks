@@ -1,0 +1,16 @@
+# INC-2291 — excerpt from production logs (UTC), single instance, cache TTL 60s, hold 15 min.
+# Reports: (1) support: "customers see OUT OF STOCK although units are free / right after a restock"
+#          (2) finance: "dashboard showed negative availability and we shipped more units than we had"
+2025-03-11T09:00:00Z INFO  stockroom  restock sku=MUG-BLK qty=5 on_hand=5
+2025-03-11T09:00:02Z INFO  stockroom  reserve id=R000101 sku=MUG-BLK qty=5 expires_at=1741683602
+2025-03-11T09:15:03Z INFO  stockroom  expire id=R000101 sku=MUG-BLK qty=5
+2025-03-11T09:15:03Z WARN  api        POST /holds sku=MUG-BLK qty=2 -> 409 InsufficientStock(requested=2, available=0)
+2025-03-11T09:15:20Z WARN  storefront product page MUG-BLK rendered "out of stock" (availability=0)
+2025-03-11T09:16:05Z INFO  stockroom  reserve id=R000103 sku=MUG-BLK qty=2 expires_at=1741684565
+2025-03-11T09:16:40Z INFO  stockroom  confirm id=R000101 sku=MUG-BLK qty=5     <- payment webhook for R000101 delivered late (gateway retry)
+2025-03-11T09:16:40Z WARN  dashboard  availability(MUG-BLK) = -2 ; on_hand=0
+2025-03-11T09:17:12Z INFO  stockroom  confirm id=R000103 sku=MUG-BLK qty=2
+2025-03-11T09:17:12Z WARN  dashboard  availability(MUG-BLK) = 0 ; on_hand=0 ; units shipped today=7 ; units received today=5
+2025-03-11T10:02:10Z INFO  stockroom  restock sku=LAMP-01 qty=12 on_hand=12     <- admin tool request body: {"sku": "lamp-01 ", "qty": 12}
+2025-03-11T10:02:15Z WARN  storefront product page LAMP-01 rendered "out of stock" (availability=0)
+2025-03-11T10:03:09Z INFO  storefront product page LAMP-01 rendered "in stock" (availability=12)

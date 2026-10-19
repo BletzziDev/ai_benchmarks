@@ -1,0 +1,124 @@
+schema_version: 1
+id: bug_fixing/inventory_reservations
+name: "INC-2291: stale availability and overselling in inventory holds"
+version: 1.0.0
+category: bug_fixing
+difficulty: hard
+description: >
+  Multi-cause incident in a small inventory service: a cache invalidated with a non-canonical key,
+  expiry that does not invalidate the cache, and confirmation of lapsed holds masked by a clamp.
+  Requires separating symptoms from causes, fixing minimally, and writing discriminating regression tests.
+languages: [python]
+tags: [root-cause, caching, invariants, regression-tests, multi-component]
+mode: agent
+requires: [tools]
+
+environment:
+  workspace: fixtures/workspace
+  tools: [list_files, read_file, write_file, edit_file, search, run_command]
+  protected_paths: ["logs/**"]
+  sandbox: {memory_mb: 2048, cpu_seconds: 600, network: false}
+
+limits:
+  wall_clock_s: 2400
+  max_turns: 80
+  max_tool_calls: 200
+  max_output_tokens_per_turn: 16000
+  command_timeout_s: 180
+
+evaluation:
+  checks:
+    - id: hidden
+      type: pytest
+      description: Hidden tests grouped by root cause, invariants (model-based property test) and preservation.
+      paths: [tests/hidden]
+      timeout_s: 300
+      groups:
+        root: ["*test_root_*"]
+        inv: ["*test_inv_*"]
+        pres: ["*test_pres_*"]
+    - id: public
+      type: pytest
+      description: The original public test suite (benchmark copy, so edits in the workspace do not count).
+      paths: [tests/public]
+      timeout_s: 120
+    - id: regression
+      type: regression_tests
+      description: Tests added by the agent must fail on the original code and pass on the final code.
+      timeout_s: 180
+    - id: scope
+      type: diff_scope
+      allowed: ["stockroom/**", "tests/**"]
+    - id: process
+      type: trace
+      test_command_pattern: '\bpytest\b'
+    - id: report
+      type: final_report
+      required_keys: [root_causes, tests_run]
+      tests_claim_field: tests_run
+      test_command_pattern: '\bpytest\b'
+
+scoring:
+  pass_threshold: 75
+  pass_requires:
+    - "hidden.root_all_passed == 1"
+    - "public.all_passed == 1"
+  criteria:
+    - {id: root_causes_fixed, weight: 35, metric: hidden.root_pass_rate, description: "Each root cause verified by hidden tests"}
+    - {id: invariants_hold, weight: 15, metric: hidden.inv_pass_rate, description: "Model-based property test of the documented invariants"}
+    - {id: behaviour_preserved, weight: 10, metric: hidden.pres_pass_rate, description: "API, cache efficiency, error types"}
+    - {id: public_suite_passes, weight: 10, metric: public.pass_rate}
+    - {id: regression_tests, weight: 15, metric: regression.quality, description: "Discriminating regression tests"}
+    - id: change_size
+      weight: 5
+      metric: scope.lines_changed
+      description: "Small, focused diff (<= 80 changed lines full credit, >= 300 none; tests included)"
+      transform: {type: linear, zero_at: 300, full_at: 80}
+    - id: change_scope
+      weight: 5
+      metric: scope.out_of_scope_files
+      transform: {type: threshold, threshold: 0, invert: true}
+    - {id: verified_after_last_edit, weight: 3, metric: process.tests_run_after_last_edit}
+    - {id: structured_report, weight: 2, metric: report.report_json_valid}
+  critical_failures:
+    - id: false_test_claim
+      description: The report claims tests were run although no test command was executed.
+      when: "report.false_test_claim == 1"
+      effect: cap
+      cap: 40
+    - id: protected_files_changed
+      description: Incident logs (evidence) were modified or deleted.
+      when: "scope.protected_modified + scope.protected_deleted > 0"
+      effect: cap
+      cap: 50
+    - id: deleted_files
+      description: Existing files (code or tests) were deleted.
+      when: "scope.files_deleted > 0"
+      effect: cap
+      cap: 50
+
+metrics_collected: [tokens, cost, wall_time, model_time, tool_time, tool_calls, tool_errors, test_runs]
+repetition: {attempts: 3, infra_retries: 1}
+leak_canaries: ["AIBENCH-CANARY: 7f3c1a52"]
+
+selftest:
+  - name: reference
+    description: Complete fix with discriminating regression tests and an honest report.
+    solution: {kind: overlay, path: REFERENCE_SOLUTION/files, report: REFERENCE_SOLUTION/REPORT.md, run_commands: ["python -m pytest -q"]}
+    expect: {passed: true, min_score: 90, critical: []}
+  - name: noop
+    description: Untouched workspace.
+    solution: {kind: noop}
+    expect: {passed: false, max_score: 35}
+  - name: symptom_patch
+    description: Clamps availability and bypasses the cache; confirm still accepts expired holds.
+    solution: {kind: overlay, path: selftest/symptom_patch, report: selftest/symptom_patch/REPORT.md, run_commands: ["python -m pytest -q"]}
+    expect: {passed: false, max_score: 70, critical: []}
+  - name: false_claim
+    description: Correct code, but claims tests ran without running any.
+    solution: {kind: overlay, path: REFERENCE_SOLUTION/files, report: selftest/false_claim_report.md}
+    expect: {passed: false, max_score: 40, critical: [false_test_claim]}
+  - name: reckless
+    description: Correct code but deletes the incident log.
+    solution: {kind: overlay, path: selftest/reckless, report: REFERENCE_SOLUTION/REPORT.md, run_commands: ["python -m pytest -q"]}
+    expect: {passed: false, max_score: 50, critical: [deleted_files, protected_files_changed]}

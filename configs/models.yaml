@@ -1,0 +1,69 @@
+# Model / agent registry. Labels (keys) are what you pass to --model.
+# Secrets are referenced by environment variable name only (api_key_env) and are never written to
+# results or forwarded into sandboxes.
+#
+# Pricing is optional. When it is absent, cost is reported as "unavailable" (never estimated).
+# The values below were copied from Anthropic's published price table as cached on 2026-10-06;
+# verify against the provider's pricing page before relying on reported costs.
+models:
+  # ---- Deterministic, offline adapters (used by selftests, CI and demos; not real models) ----
+  scripted/reference:
+    adapter: scripted
+    kind: scripted
+    description: Replays each benchmark's reference solution (upper-bound sanity check).
+    options: {solution: reference}
+  scripted/noop:
+    adapter: scripted
+    kind: scripted
+    description: Does nothing and reports nothing (lower-bound sanity check).
+    options: {solution: noop}
+
+  # ---- Anthropic (official SDK; pip install 'aibench[anthropic]') ----
+  anthropic/claude-opus-5-5:
+    adapter: anthropic
+    model: claude-opus-5-5
+    api_key_env: ANTHROPIC_API_KEY
+    params: {max_output_tokens: 16000}
+    unsupported_params: [temperature, top_p, top_k, seed]   # sampling params are rejected by this model
+    provider_options: {output_config: {effort: high}}
+    pricing: {input_per_mtok: 4.0, output_per_mtok: 20.0, cache_read_per_mtok: 0.20, source: "Anthropic price table (cached 2026-10-06)", as_of: "2026-10-06"}
+  anthropic/claude-sonnet-5-5:
+    adapter: anthropic
+    model: claude-sonnet-5-5
+    api_key_env: ANTHROPIC_API_KEY
+    params: {max_output_tokens: 16000}
+    unsupported_params: [temperature, top_p, top_k, seed]
+    provider_options: {output_config: {effort: high}}
+    pricing: {input_per_mtok: 2.0, output_per_mtok: 10.0, cache_read_per_mtok: 0.20, source: "Anthropic price table (cached 2026-10-06)", as_of: "2026-10-06"}
+  anthropic/claude-haiku-5-5:
+    adapter: anthropic
+    model: claude-haiku-5-5
+    api_key_env: ANTHROPIC_API_KEY
+    params: {max_output_tokens: 16000}
+    unsupported_params: [temperature, top_p, top_k, seed]
+    pricing: {input_per_mtok: 0.10, output_per_mtok: 0.50, source: "Anthropic price table (cached 2026-10-06; prompts <=100K tokens)", as_of: "2026-10-06"}
+
+  # ---- Any OpenAI-compatible Chat Completions endpoint (OpenAI, OpenRouter, vLLM, Ollama, ...) ----
+  # Replace `model` with a real model id from your provider before use.
+  openrouter/example:
+    adapter: openai_compatible
+    model: REPLACE-WITH-PROVIDER/MODEL-ID
+    base_url: https://openrouter.ai/api/v1
+    api_key_env: OPENROUTER_API_KEY
+    params: {temperature: 0, max_output_tokens: 16000, seed: 1234}
+  local/ollama-example:
+    adapter: openai_compatible
+    model: REPLACE-WITH-LOCAL-MODEL
+    base_url: http://localhost:11434/v1
+    params: {temperature: 0, max_output_tokens: 8192, seed: 1234}
+
+  # ---- Complete external agents (own loop, own tools). Compared only against other agents. ----
+  agent/claude-code:
+    adapter: external_agent
+    kind: agent
+    description: Claude Code CLI in headless mode, run inside the benchmark workspace.
+    options:
+      command: ["claude", "-p", "--output-format", "json", "--permission-mode", "acceptEdits"]
+      prompt_via: stdin            # stdin | file ({prompt_file} placeholder) | arg ({prompt} placeholder)
+      output_format: claude_json   # text | claude_json
+      env_passthrough: [ANTHROPIC_API_KEY]

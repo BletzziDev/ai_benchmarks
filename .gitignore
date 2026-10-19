@@ -1,0 +1,13 @@
+__pycache__/
+*.pyc
+*.egg-info/
+.pytest_cache/
+.hypothesis/
+.venv/
+.env
+build/
+dist/
+# Run outputs are large and machine-specific; only curated demo results are versioned.
+results/*
+!results/README.md
+!results/demo/

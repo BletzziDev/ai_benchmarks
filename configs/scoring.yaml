@@ -1,0 +1,13 @@
+# Global aggregation policy. Per-benchmark criteria and weights live in each benchmark.yaml.
+# Category weights default to equal; override here only with a documented reason.
+category_weights: {}
+overall_aggregation: mean_of_categories   # mean_of_categories | mean_of_benchmarks
+
+stats:
+  confidence: 0.95
+  bootstrap_iterations: 10000
+  seed: 1234
+  min_attempts_for_ci: 2
+
+# Runs are only ranked against each other when these fields match (see docs/reproducibility.md).
+comparability_fields: [benchmark_hash, tier, tools, system_kind, harness_version]

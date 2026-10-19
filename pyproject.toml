@@ -1,0 +1,37 @@
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "aibench"
+version = "0.1.0"
+description = "Modular, reproducible benchmark and eval suite for AI models and agents that write software."
+readme = "README.md"
+license = { text = "MIT" }
+requires-python = ">=3.11"
+dependencies = [
+  "pydantic>=2.6,<3",
+  "PyYAML>=6.0",
+]
+
+[project.optional-dependencies]
+# Graders for benchmarks that execute code (most of the suite) need pytest and hypothesis
+# available to the interpreter that runs the sandboxed commands.
+eval = ["pytest>=8", "hypothesis>=6.100"]
+frontend = ["playwright>=1.45"]
+anthropic = ["anthropic>=1.0"]
+dev = ["pytest>=8", "hypothesis>=6.100", "playwright>=1.45", "anthropic>=1.0"]
+
+[project.scripts]
+benchmark = "aibench.cli:main"
+
+[tool.setuptools.packages.find]
+include = ["aibench*"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+markers = [
+  "slow: end-to-end selftests that run full benchmark pipelines",
+  "docker: requires a running Docker daemon",
+  "browser: requires Playwright + Chromium",
+]

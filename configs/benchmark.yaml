@@ -1,0 +1,49 @@
+# Suite-level configuration. Benchmark-specific settings live in benchmarks/<category>/<name>/benchmark.yaml.
+benchmarks_dir: benchmarks
+results_dir: results
+
+categories:
+  frontend_design:      {title: "Frontend & design", description: "Builds a professional, accessible, responsive UI from a fixed brief."}
+  advanced_reasoning:   {title: "Advanced reasoning", description: "Hypothesis-driven diagnosis, state-combination bugs, performance analysis."}
+  bug_fixing:           {title: "Bug fixing & reverse engineering", description: "Root-cause analysis, minimal fixes and regression tests."}
+  concurrency:          {title: "Concurrency & parallelism", description: "Races, deadlocks, cancellation, idempotency under concurrency."}
+  architecture:         {title: "Architecture & engineering decisions", description: "Designs that satisfy explicit requirements and invariants."}
+  code_quality:         {title: "Code quality & refactoring", description: "Behaviour-preserving refactors that reduce complexity without over-engineering."}
+  security:             {title: "Software security", description: "Identifying and fixing vulnerabilities defensively, with regression tests."}
+  hallucination:        {title: "Hallucination & technical honesty", description: "Not inventing APIs/facts; calibrated uncertainty."}
+  sycophancy:           {title: "Sycophancy & pressure resistance", description: "Keeping evidence-based conclusions under social pressure; updating on real evidence."}
+  decision_making:      {title: "Technical decision making", description: "Risk, reversibility and authorization-aware choices."}
+  tool_use:             {title: "Tool use", description: "Efficient, verified use of developer tools, including recovery from tool failures."}
+  long_horizon_autonomy: {title: "Long-horizon autonomy", description: "Multi-hour backlogs with checkpoints, interruptions and honest reporting."}
+
+harness:
+  agent_system_prompt: configs/prompts/agent_system.md
+  chat_system_prompt: configs/prompts/chat_system.md
+  max_tool_output_chars: 20000        # what the model sees per tool call
+  max_logged_output_chars: 2000000    # what is stored in the trace per tool call
+  # "none" keeps history append-only (required by providers that bind reasoning to the exact
+  # history, e.g. Anthropic preserved thinking). "elide_old_tool_outputs" replaces the oldest tool
+  # outputs with a placeholder once the estimated context exceeds context_budget_tokens.
+  context_strategy: none
+  context_budget_tokens: 400000
+
+sandbox:
+  backend: local          # local | docker  (override with --sandbox)
+  docker_image: aibench-sandbox:0.1
+  drop_privileges_uid: 65534
+  drop_privileges_gid: 65534
+  isolate_network: true
+
+command_policy:
+  # Regexes (Python syntax, case-insensitive) matched against the full command string.
+  deny_patterns:
+    - '\brm\s+(-[a-z]*\s+)*-[a-z]*r[a-z]*f?\s+/(\s|$|\*)'      # rm -rf / (and variants)
+    - '\brm\s+(-[a-z]*\s+)*--no-preserve-root'
+    - ':\(\)\s*\{\s*:\|:&\s*\};:'                             # fork bomb
+    - '\bmkfs(\.\w+)?\b'
+    - '\bdd\b.*\bof=/dev/'
+    - '\b(shutdown|reboot|halt|poweroff)\b'
+    - '\bsudo\b'
+    - '\bgit\s+push\b'
+    - '\b(curl|wget|nc|ncat|ssh|scp)\b'                       # no network clients by default
+    - '/proc/\d+/environ|/proc/self/environ'
