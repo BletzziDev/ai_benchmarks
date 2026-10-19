@@ -63,6 +63,9 @@ def _parse(expr: str) -> ast.Expression:
         )
         if not isinstance(node, allowed):
             raise ExpressionError(f"disallowed syntax in {expr!r}: {type(node).__name__}")
+        name = node.attr if isinstance(node, ast.Attribute) else (node.id if isinstance(node, ast.Name) else "")
+        if name.startswith("__") and name.endswith("__"):
+            raise ExpressionError(f"dunder names are not allowed in {expr!r}")
         if isinstance(node, ast.Call):
             if not isinstance(node.func, ast.Name) or node.func.id not in (*_FUNCS, "missing"):
                 raise ExpressionError(f"only min/max/abs/missing calls are allowed in {expr!r}")

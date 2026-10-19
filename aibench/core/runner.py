@@ -334,11 +334,17 @@ class Runner:
             shutil.rmtree(tmp_orig, ignore_errors=True)
 
     def _snapshot(self, sb: Sandbox, dest: Path, max_mb: int, trace: Trace) -> None:
+        """Preserve the final workspace for auditing; oversized workspaces keep only files <= 5 MB."""
         size_mb = dir_size_bytes(sb.root) / (1024 * 1024)
-        if size_mb > max_mb:
-            trace.emit("snapshot_truncated", size_mb=round(size_mb, 1), limit_mb=max_mb)
         copy_tree(sb.root, dest)
         shutil.rmtree(dest / ".git", ignore_errors=True)
+        if size_mb > max_mb:
+            dropped = []
+            for p in sorted(dest.rglob("*")):
+                if p.is_file() and p.stat().st_size > 5 * 1024 * 1024:
+                    dropped.append(str(p.relative_to(dest)))
+                    p.unlink()
+            trace.emit("snapshot_truncated", size_mb=round(size_mb, 1), limit_mb=max_mb, dropped_files=dropped[:100])
 
     def _run_chat(self, bench: LoadedBenchmark, adapter: ModelAdapter, limits: Any, trace: Trace, adir: Path,
                   solution: SolutionSpec | None) -> tuple[dict[str, Any], dict[str, Any], str, list[Any]]:

@@ -372,8 +372,9 @@ class DockerSandbox(Sandbox):
         out = r.stdout.decode("utf-8", "replace")
         errs = r.stderr.decode("utf-8", "replace")
         trunc = len(out) > self.max_output_chars or len(errs) > self.max_output_chars
+        err = "workspace_quota_exceeded" if self.workspace_mb() > self.spec.max_workspace_mb else None
         return CommandResult(command, None if timed_out else r.returncode, out[: self.max_output_chars],
-                             errs[: self.max_output_chars], duration, timed_out=timed_out, truncated=trunc)
+                             errs[: self.max_output_chars], duration, timed_out=timed_out, truncated=trunc, error=err)
 
 
 def docker_available() -> bool:
